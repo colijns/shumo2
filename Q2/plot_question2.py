@@ -3,7 +3,8 @@
 
 """问题2 配图：介质A体积分数 vs 导通概率（95% Wilson 误差棒）。
 
-数据来源：Q2/results/question2_result.csv（蒙特卡洛 M=2000，seed=42+i）。
+数据来源：Q2/results/question2_result.csv（蒙特卡洛默认 M=2000，
+批次 seed=42+100000*体积分数序号+批次号）。
 输出：Q2/figures/问题2_导通概率_vs_体积分数.png + .pdf（300dpi，双格式）。
 """
 

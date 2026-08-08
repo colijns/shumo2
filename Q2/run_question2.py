@@ -13,6 +13,7 @@ SHUMO_Q2_BASE_SEED 调整试验数、批大小、进程数和基础随机种子�
 import os
 import sys
 from concurrent.futures import ProcessPoolExecutor
+import json
 import time
 
 import numpy as np
@@ -28,6 +29,8 @@ MAX_WORKERS = int(os.environ.get(
 BASE_SEED = int(os.environ.get('SHUMO_Q2_BASE_SEED', str(mc.BASE_SEED)))
 OUT_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                        'results', 'question2_result.csv')
+OUT_JSON = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        'results', 'question2_result.json')
 
 
 def fmt_pct(v):
@@ -54,6 +57,9 @@ def _merge_batches(phi, batches):
         'ci_lower': lo,
         'ci_upper': hi,
         'mean_fragments': sum(r['mean_fragments'] * r['m'] for r in batches) / total_m,
+        'mean_crossing': sum(r['mean_crossing'] * r['m'] for r in batches) / total_m,
+        'mean_crossing_rate': sum(
+            r['mean_crossing_rate'] * r['m'] for r in batches) / total_m,
         'mean_edges': sum(r['mean_edges'] * r['m'] for r in batches) / total_m,
         'mean_gjk': sum(r['mean_gjk'] * r['m'] for r in batches) / total_m,
         # 各 worker 计算时间之和，用于比较计算量；总墙钟时间在 main 中单独输出。
@@ -110,13 +116,33 @@ def main():
     # 写 CSV
     os.makedirs(os.path.dirname(OUT_CSV), exist_ok=True)
     header = ['phi', 'n_A', 'm', 'x', 'p_hat', 'ci_lower', 'ci_upper',
-              'mean_fragments', 'mean_edges', 'mean_gjk', 'elapsed_s']
+              'mean_fragments', 'mean_crossing', 'mean_crossing_rate',
+              'mean_edges', 'mean_gjk', 'elapsed_s']
     with open(OUT_CSV, 'w', newline='', encoding='utf-8') as f:
         f.write(','.join(header) + '\n')
         for r in rows:
             f.write(','.join(f'{r[k]:.10g}' if isinstance(r[k], float) else str(r[k])
                              for k in header) + '\n')
     print(f'\n结果已写入 {OUT_CSV}')
+
+    payload = {
+        'problem': 'A题问题2',
+        'model': {
+            'boundary_geometry': '轴线截断并平移；片段按实际位置独立判定',
+            'same_source_auto_connection': False,
+            'solid_boundary_note': '轴线分段近似，不等同于圆柱实体与基本盒精确求交',
+            'delta_nm': float(mc.geo.DELTA),
+            'base_seed': BASE_SEED,
+            'batch_seed_formula': 'base_seed + 100000*phi_index + batch_index',
+            'batch_size': BATCH_SIZE,
+            'theoretical_axis_crossing_rate': mc.THEORETICAL_CROSSING_RATE,
+        },
+        'rows': rows,
+        'wall_elapsed_s': t_total,
+    }
+    with open(OUT_JSON, 'w', encoding='utf-8') as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+    print(f'结果元数据已写入 {OUT_JSON}')
 
 
 if __name__ == '__main__':

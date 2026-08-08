@@ -245,25 +245,30 @@ def sample_conductive(c, u, h, delta=DELTA):
            判连——所有候选必须 GJK 精算（Q4 球-圆柱混合同样依赖 GJK）；
         6. connected(S,T) → conductive。
 
-    返回 dict: {conductive, n_fragments, n_edges, n_left, n_right, n_gjk}。
+    返回 dict: {conductive, n_fragments, n_crossing, n_edges, n_left,
+    n_right, n_gjk}。其中 n_crossing 为截断后产生多于一个片段的原始圆柱数。
     """
     c = np.asarray(c, dtype=float)
     u = np.asarray(u, dtype=float)
     h = np.asarray(h, dtype=float)
     n_cyl = len(c)
     if n_cyl == 0:
-        return {'conductive': False, 'n_fragments': 0, 'n_edges': 0,
+        return {'conductive': False, 'n_fragments': 0, 'n_crossing': 0,
+                'n_edges': 0,
                 'n_left': 0, 'n_right': 0, 'n_gjk': 0}
 
     frag = clip_batch(c, u, h)
     p1s, p2s, cyl_idx = frag['p1s'], frag['p2s'], frag['cyl_idx']
     nf = len(p1s)
+    fragment_counts = np.bincount(cyl_idx, minlength=n_cyl)
+    n_crossing = int(np.count_nonzero(fragment_counts > 1))
 
     dL, dR = electrode_dist(p1s, p2s)
     left = np.nonzero(dL <= delta)[0]
     right = np.nonzero(dR <= delta)[0]
     if len(left) == 0 or len(right) == 0:
-        return {'conductive': False, 'n_fragments': nf, 'n_edges': 0,
+        return {'conductive': False, 'n_fragments': nf,
+                'n_crossing': n_crossing, 'n_edges': 0,
                 'n_left': int(len(left)), 'n_right': int(len(right)), 'n_gjk': 0}
 
     uf = UnionFind(nf + 2)
@@ -295,7 +300,8 @@ def sample_conductive(c, u, h, delta=DELTA):
 
     conductive = uf.connected(s_node, t_node)
     return {'conductive': bool(conductive), 'n_fragments': nf,
-            'n_edges': n_edges, 'n_left': int(len(left)),
+            'n_crossing': n_crossing, 'n_edges': n_edges,
+            'n_left': int(len(left)),
             'n_right': int(len(right)), 'n_gjk': n_gjk}
 
 
