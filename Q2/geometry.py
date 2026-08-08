@@ -54,6 +54,29 @@ def generate_cylinders(n, rng):
     return c, u, h
 
 
+def cylinder_projection_halfwidth(u, h, r=R):
+    """完整平端圆柱在 x/y/z 三轴上的精确投影半宽。"""
+    u = np.asarray(u, dtype=float)
+    h = np.asarray(h, dtype=float)
+    return (h[..., None] * np.abs(u)
+            + float(r) * np.sqrt(np.maximum(1.0 - u * u, 0.0)))
+
+
+def axis_crossing_flags(c, u, h, half_l=HALF_L):
+    """中心轴线是否越过基本盒任一边界。"""
+    c = np.asarray(c, dtype=float)
+    u = np.asarray(u, dtype=float)
+    h = np.asarray(h, dtype=float)
+    return np.any(np.abs(c) + h[..., None] * np.abs(u) > half_l, axis=1)
+
+
+def solid_crossing_flags(c, u, h, r=R, half_l=HALF_L):
+    """完整圆柱实体是否越过基本盒任一边界。"""
+    c = np.asarray(c, dtype=float)
+    extent = cylinder_projection_halfwidth(u, h, r)
+    return np.any(np.abs(c) + extent > half_l, axis=1)
+
+
 def _crossing_ts(p1, p2):
     """轴线段 [p1,p2] 与 6 个边界平面的全部交点参数 t（排序去重）。
 

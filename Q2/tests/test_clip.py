@@ -15,6 +15,30 @@ import geometry as geo  # noqa: E402
 
 class TestClip(unittest.TestCase):
 
+    def test_solid_can_cross_when_axis_does_not(self):
+        c = np.array([[0.0, 4975.0, 0.0]])
+        u = np.array([[1.0, 0.0, 0.0]])
+        h = np.array([2500.0])
+        self.assertFalse(geo.axis_crossing_flags(c, u, h)[0])
+        self.assertTrue(geo.solid_crossing_flags(c, u, h)[0])
+
+    def test_axis_crossing_implies_solid_crossing(self):
+        rng = np.random.default_rng(20260808)
+        c, u, h = geo.generate_cylinders(10000, rng)
+        axis = geo.axis_crossing_flags(c, u, h)
+        solid = geo.solid_crossing_flags(c, u, h)
+        self.assertFalse(np.any(axis & ~solid))
+
+    def test_projection_halfwidth_known_directions(self):
+        u = np.array([[1.0, 0.0, 0.0],
+                      [0.0, 1.0, 0.0]])
+        h = np.array([2500.0, 2500.0])
+        extent = geo.cylinder_projection_halfwidth(u, h)
+        np.testing.assert_allclose(
+            extent,
+            [[2500.0, geo.R, geo.R], [geo.R, 2500.0, geo.R]],
+            atol=1e-10)
+
     def test_inside_single_fragment(self):
         p1 = np.array([-1000.0, 0.0, 0.0])
         p2 = np.array([3000.0, 0.0, 0.0])
