@@ -43,9 +43,9 @@ def main():
     fig, ax = plt.subplots(figsize=(7, 4.6))
     ax.errorbar(phis * 100, p_hat, yerr=[p_hat - lo, hi - p_hat],
                 fmt='o-', color='#1f77b4', capsize=4, linewidth=1.8,
-                markersize=6, label='导通概率 p̂ ± 95% Wilson CI')
+                markersize=6, label='导通概率（95% Wilson CI 误差棒）')
     ax.set_xlabel('体积分数 φ（%）')
-    ax.set_ylabel('导通概率 p̂')
+    ax.set_ylabel('导通概率')
     ax.set_title('问题2：介质A体积分数与导通概率（蒙特卡洛 M=2000）')
     ax.set_xlim(0.45, 1.05)
     ax.set_ylim(-0.02, 1.05)
