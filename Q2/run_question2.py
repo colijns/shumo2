@@ -5,8 +5,8 @@
 
 体积分数：0.50% / 0.60% / 0.70% / 1.00%，每点默认 M=2000。
 全部“体积分数×试验批次”进入同一个进程池，避免外层与内层嵌套并行。
-可用环境变量 SHUMO_Q2_TRIALS、SHUMO_Q2_BATCH_SIZE、SHUMO_Q2_WORKERS
-调整试验数、批大小和进程数。
+可用环境变量 SHUMO_Q2_TRIALS、SHUMO_Q2_BATCH_SIZE、SHUMO_Q2_WORKERS、
+SHUMO_Q2_BASE_SEED 调整试验数、批大小、进程数和基础随机种子。
 结果含 95% Wilson 置信区间，供论文表格与配图使用。
 """
 
@@ -25,6 +25,7 @@ M = int(os.environ.get('SHUMO_Q2_TRIALS', '2000'))
 BATCH_SIZE = int(os.environ.get('SHUMO_Q2_BATCH_SIZE', '50'))
 MAX_WORKERS = int(os.environ.get(
     'SHUMO_Q2_WORKERS', str(min(8, os.cpu_count() or 1))))
+BASE_SEED = int(os.environ.get('SHUMO_Q2_BASE_SEED', str(mc.BASE_SEED)))
 OUT_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                        'results', 'question2_result.csv')
 
@@ -71,7 +72,7 @@ def main():
         while remaining:
             batch_m = min(BATCH_SIZE, remaining)
             # 每个批次独立且确定的 seed，不受进程调度顺序影响。
-            seed = mc.BASE_SEED + phi_index * 100_000 + batch_index
+            seed = BASE_SEED + phi_index * 100_000 + batch_index
             jobs.append((phi_index, batch_index, phi, batch_m, seed))
             remaining -= batch_m
             batch_index += 1
