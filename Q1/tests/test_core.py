@@ -200,7 +200,7 @@ class TestPeriodicNeighbors(unittest.TestCase):
         self.h = np.array([1206., 1206.])
 
     def test_pbc_contact_distance_zero(self):
-        res = analyze_group(self.c, self.u, self.h)
+        res = analyze_group(self.c, self.u, self.h, pbc=True)
         self.assertTrue(res['conductive'])
         self.assertEqual(len(res['contact_edges']), 1)
         i, j, k, d = res['contact_edges'][0]
@@ -229,7 +229,8 @@ class TestPBCOff(unittest.TestCase):
         self.h = np.array([1206., 1206.])
 
     def test_pbc_off_no_edges(self):
-        res = analyze_group(self.c, self.u, self.h, pbc=False)
+        # 统一主口径默认关闭周期自动接触。
+        res = analyze_group(self.c, self.u, self.h)
         self.assertEqual(len(res['contact_edges']), 0)
         self.assertFalse(res['conductive'])
 

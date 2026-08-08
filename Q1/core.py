@@ -357,20 +357,21 @@ def bfs_witness_path(n_nodes, adj, left, right):
 
 # ---------------- 分组级主流程 ----------------
 
-def analyze_group(c, u, h, r=R, delta=DELTA, side_len=L, pbc=True,
+def analyze_group(c, u, h, r=R, delta=DELTA, side_len=L, pbc=False,
                   wrap_crossings=False):
     """计算一个分组（一组微构体）的完整导电判定。
 
     参数：
         c, u, h: (n,3), (n,3), (n,) 中心/单位方向/半长
-        pbc: 是否启用周期边界（27 镜像）
+        pbc: 是否启用周期镜像接触。问题1统一主口径为 False；True 仅作
+             “相对边界自动视为周期近邻”的敏感性对照
         wrap_crossings: 问题1 恒 False（True 仅后续随机仿真）
     返回语义化 dict（键见 docstring 末尾示例）。
 
-    管线（规格第 10 节）：
-        1. 根据介质中心计算最小镜像位移；
-        2. 周期 AABB 粗筛排除不可能接触的介质对；
-        3. 对候选介质对枚举实际可能命中的周期平移；
+    管线：
+        1. 主口径只在当前微构体内计算片段实际位置；
+        2. AABB 粗筛排除不可能接触的介质对；
+        3. 敏感性对照启用时才枚举周期平移；
         4. 轴线胶囊距离下界继续筛选；
         5. 对不能排除的情况调用 GJK；
         6. 距离 <= 1.8 时加入接触边并执行并查集合并；
@@ -431,12 +432,21 @@ def analyze_group(c, u, h, r=R, delta=DELTA, side_len=L, pbc=True,
     # 收集 (i, j, k) 三元组；对每对保留通过 AABB 的全部 k
     triples = []  # (i, j, k) 用 int
     for i, j in zip(i_pairs.tolist(), j_pairs.tolist()):
-        kbase = k0[i, j]
         kcands = []
-        for off in offsets:
-            k = np.clip(kbase + off, -1, 1)
-            if aabb_pbc_overlap(lo[i], hi[i], lo[j], hi[j], k, side_len, delta):
-                kcands.append(tuple(k.tolist()))
+        if pbc:
+            kbase = k0[i, j]
+            for off in offsets:
+                k = np.clip(kbase + off, -1, 1)
+                if aabb_pbc_overlap(lo[i], hi[i], lo[j], hi[j], k,
+                                    side_len, delta):
+                    kcands.append(tuple(k.tolist()))
+        else:
+            # 统一片段独立口径：关闭 PBC 时精算阶段也必须严格使用零平移，
+            # 不能沿用中心最小镜像 k0，否则会悄悄恢复跨壁自动接触。
+            k = np.zeros(3, dtype=int)
+            if aabb_pbc_overlap(lo[i], hi[i], lo[j], hi[j], k,
+                                side_len, delta):
+                kcands.append((0, 0, 0))
         for k in kcands:
             triples.append((int(i), int(j), k))
 
