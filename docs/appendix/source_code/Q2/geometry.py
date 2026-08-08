@@ -1,12 +1,13 @@
 # 本程序及代码是在AI工具辅助下完成的
 # AI工具名称：DeepSeek‑V4‑Flash，版本 / 型号：DeepSeek‑V4‑Flash‑0731，开发机构 / 公司：深度求索（DeepSeek），版本发布日期：2026‑07‑31
 
-"""问题2 几何内核：介质A 随机生成、边界截断（PBC 环面语义）、片段级导通判定。
+"""问题2 几何内核：介质A 随机生成、边界截断、片段级导通判定。
 
 建模口径（与 docs/问题2.md 同步）：
-- 边界截断规则物理上等价于周期性边界条件：圆柱从左边界穿出、经平移从
-  右边界进入，仍是同一根连续导体（空间为环面），电子可沿圆柱在左右两侧
-  之间流动。因此同一原始圆柱的所有截断片段在图论上预先合并为一个连通组。
+- 越界部分按题意截断并平移到相对侧。同源编号仅用于完整圆柱的数量、体积
+  与片段来源追踪，不等价于平移后片段之间存在一条不可见的导线。片段只有
+  在当前微构体内表面距离不超过阈值时才建立电连接，避免单根跨 X 壁圆柱
+  无条件短接左右电极并使导通概率退化为 100%。
 - 介质A 是平端圆柱（底面半径 r），非胶囊：胶囊距离 max(0, 轴距-2R)
   仅是表面距离的下界（胶囊 ⊃ 平端圆柱），只作安全拒绝预筛；建边一律
   GJK 精算（Q1 core.gjk_distance 同为平端圆柱模型，支撑
@@ -16,7 +17,7 @@
 
 复用 Q1/core.py（只读）：常量 R/DELTA/L/HALF_L、UnionFind、标量
 segment_distance、gjk_distance。不复用 analyze_group（整圆柱单节点 + 27 镜像
-语义与片段级 + 同源合并不同构）。
+语义与本问“截断平移后片段独立参与接触判定”的图结构不同）。
 """
 
 import os
@@ -121,7 +122,8 @@ def clip_cylinder(p1, p2):
 def clip_batch(c, u, h):
     """整批截断。返回 {'p1s': (m,3), 'p2s': (m,3), 'cyl_idx': (m,) int}。
 
-    cyl_idx: 每片段所属的原始圆柱编号（用于同源图论合并）。
+    cyl_idx: 每片段所属的原始圆柱编号，仅用于来源追踪和完整圆柱计量，
+    不用于自动建立电连接。
     """
     c = np.asarray(c, dtype=float)
     u = np.asarray(u, dtype=float)
@@ -235,7 +237,7 @@ def sample_conductive(c, u, h, delta=DELTA):
     管线：
         1. clip_batch 截断成片段；
         2. 电极边：片段到左右带电面距离 ≤ delta 分别连 S/T，任一侧为空短路；
-        3. UnionFind：先按 cyl_idx 合并同源片段（PBC 环面物理连续），再连电极边；
+        3. UnionFind：仅连接片段与实际接触的电极，不按 cyl_idx 预合并；
         4. AABB 预筛 + 批量轴距胶囊初筛；
         5. 建边：axis_dist ≤ 2R+delta 的候选对走 GJK 精算（平端圆柱精确
            表面距离 ≤ delta 建边）。注意胶囊距离 max(0, 轴距-2R) 对平端
@@ -266,12 +268,6 @@ def sample_conductive(c, u, h, delta=DELTA):
 
     uf = UnionFind(nf + 2)
     s_node, t_node = nf, nf + 1
-
-    # 同源片段图论合并（PBC 环面：同一圆柱的片段物理连续）
-    order = np.argsort(cyl_idx, kind='stable')
-    for a, b in zip(order[:-1], order[1:]):
-        if cyl_idx[a] == cyl_idx[b]:
-            uf.union(int(a), int(b))
 
     # 电极边
     for i in left:
@@ -304,7 +300,7 @@ def sample_conductive(c, u, h, delta=DELTA):
 
 
 if __name__ == '__main__':
-    # 简单自检：单根跨壁圆柱在 PBC 环面上应导通（触左右电极 + 同源合并）
+    # 简单自检：单根跨壁圆柱的两个平移片段不自动形成跨电极捷径
     rng = np.random.default_rng(42)
     c, u, h = generate_cylinders(3, rng)
     print('生成 3 根圆柱: centers =\n', c)
@@ -320,6 +316,6 @@ if __name__ == '__main__':
     ends = np.array([[[-6000.0, 0.0, 0.0], [-1000.0, 0.0, 0.0]]])
     cc, uu, hh = build_cylinders(ends)
     res = sample_conductive(cc, uu, hh)
-    print('单根跨壁圆柱 (PBC 环面):', res)
-    assert res['conductive'], '跨壁圆柱应导通（PBC 环面语义）'
+    print('单根跨壁圆柱（片段独立）:', res)
+    assert not res['conductive'], '同源片段不应无条件短接左右电极'
     print('自检通过')

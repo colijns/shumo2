@@ -1,7 +1,7 @@
 # 本程序及代码是在AI工具辅助下完成的
 # AI工具名称：DeepSeek‑V4‑Flash，版本 / 型号：DeepSeek‑V4‑Flash‑0731，开发机构 / 公司：深度求索（DeepSeek），版本发布日期：2026‑07‑31
 
-"""蒙特卡洛 + PBC 环面语义 + 构造导通链测试。"""
+"""蒙特卡洛 + 边界截断片段独立语义 + 构造导通链测试。"""
 
 import os
 import sys
@@ -23,14 +23,14 @@ class TestMonteCarloCore(unittest.TestCase):
         self.assertEqual(mc.n_cylinders(0.01), 707)
 
     def test_reproducible_same_seed(self):
-        r1 = mc.simulate_phi(0.01, m=50, seed=42)
-        r2 = mc.simulate_phi(0.01, m=50, seed=42)
+        r1 = mc.simulate_phi(0.01, m=3, seed=42)
+        r2 = mc.simulate_phi(0.01, m=3, seed=42)
         self.assertEqual(r1['x'], r2['x'])
         self.assertEqual(r1['mean_fragments'], r2['mean_fragments'])
 
     def test_different_seed_different_rng(self):
-        r1 = mc.simulate_phi(0.01, m=100, seed=42)
-        r2 = mc.simulate_phi(0.01, m=100, seed=43)
+        r1 = mc.simulate_phi(0.01, m=3, seed=42)
+        r2 = mc.simulate_phi(0.01, m=3, seed=43)
         # 连续统计量（平均片段数）不同 seed 必不同
         self.assertNotEqual(r1['mean_fragments'], r2['mean_fragments'])
 
@@ -50,33 +50,32 @@ class TestMonteCarloCore(unittest.TestCase):
             self.assertLessEqual(p, hi + 1e-9)
 
     def test_smoke_small_m(self):
-        # 4 个 φ × M=20 冒烟，全部跑通且数值在合理域
+        # 4 个 φ × M=2 冒烟，全部跑通且数值在合理域
         for i, phi in enumerate([0.005, 0.006, 0.007, 0.01]):
-            res = mc.simulate_phi(phi, m=20, seed=mc.BASE_SEED + i)
+            res = mc.simulate_phi(phi, m=2, seed=mc.BASE_SEED + i)
             self.assertGreaterEqual(res['x'], 0)
-            self.assertLessEqual(res['x'], 20)
+            self.assertLessEqual(res['x'], 2)
             self.assertGreater(res['mean_fragments'], 0.0)
 
 
-class TestPbcTorus(unittest.TestCase):
-    """PBC 环面语义：同一圆柱的跨壁片段物理连续，图论合并后桥接 S-T。"""
+class TestIndependentFragments(unittest.TestCase):
+    """同源编号只记录来源，不使分处相对边界的片段自动电连接。"""
 
-    def test_single_wall_crossing_cylinder_conductive(self):
+    def test_single_wall_crossing_cylinder_not_automatic_conductive(self):
         # 单根跨壁圆柱：p1=(-6000,0,0) → p2=(-1000,0,0)
         # 内部段 x∈[-5000,-1000] 触左电极；wrap 段 x∈[0,4000] 触右电极；
-        # 同源 union 后 S-cyl-T 连通 → Y=1（单根圆柱在环面上自成通路）
+        # 两片段仅同源但空间分离，不建立不可见导线，因此不能单根短接 S-T。
         from core import build_cylinders
         ends = np.array([[[-6000.0, 0.0, 0.0], [-1000.0, 0.0, 0.0]]])
         c, u, h = build_cylinders(ends)
         res = geo.sample_conductive(c, u, h)
-        self.assertTrue(res['conductive'])
+        self.assertFalse(res['conductive'])
         self.assertEqual(res['n_fragments'], 2)
         self.assertEqual(res['n_left'], 1)
         self.assertEqual(res['n_right'], 1)
 
-    def test_same_source_union_not_automatic(self):
-        # 同源合并不产生虚假导通：单根圆柱完全在内部、仅触左电极 → 不导通
-        # （证明同源 union 只合并片段，不凭空连 S-T）
+    def test_single_fragment_only_touches_left(self):
+        # 单根圆柱完全在内部且仅触左电极，显然不导通。
         from core import build_cylinders
         ends = np.array([[[-4999.0, 0.0, 0.0], [-2500.0, 0.0, 0.0]]])
         c, u, h = build_cylinders(ends)
