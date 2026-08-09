@@ -1,12 +1,14 @@
+import importlib.util
 import os
-import sys
 import unittest
 
 
 Q4_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, Q4_DIR)
-import geometry as geo  # noqa: E402
-import monte_carlo as mc  # noqa: E402
+_SPEC = importlib.util.spec_from_file_location(
+    'q4_monte_carlo', os.path.join(Q4_DIR, 'monte_carlo.py'))
+mc = importlib.util.module_from_spec(_SPEC)
+_SPEC.loader.exec_module(mc)
+geo = mc.geo
 
 
 class TestCosts(unittest.TestCase):

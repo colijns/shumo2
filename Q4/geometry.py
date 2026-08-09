@@ -18,12 +18,23 @@ import numpy as np
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 Q1_DIR = os.path.join(ROOT, 'Q1')
 Q2_DIR = os.path.join(ROOT, 'Q2')
-sys.path.insert(0, Q1_DIR)
-sys.path.insert(0, Q2_DIR)
 
-from core import (DELTA, HALF_L, L, R, GJKError, UnionFind,  # noqa: E402
-                  _closest_point_to_origin, gjk_distance, segment_distance,
-                  support_cylinder)
+# Q1 core 与 Q2 geometry 均通过独立模块名显式加载，避免把 Q1/Q2 目录
+# 注入 sys.path 顶部队后续 import（如 monte_carlo）造成误命中。
+_CORE_SPEC = importlib.util.spec_from_file_location(
+    'q1_core_for_q4', os.path.join(Q1_DIR, 'core.py'))
+_q1_core = importlib.util.module_from_spec(_CORE_SPEC)
+_CORE_SPEC.loader.exec_module(_q1_core)
+DELTA = _q1_core.DELTA
+HALF_L = _q1_core.HALF_L
+L = _q1_core.L
+R = _q1_core.R
+GJKError = _q1_core.GJKError
+UnionFind = _q1_core.UnionFind
+_closest_point_to_origin = _q1_core._closest_point_to_origin
+gjk_distance = _q1_core.gjk_distance
+segment_distance = _q1_core.segment_distance
+support_cylinder = _q1_core.support_cylinder
 
 # 本文件也叫geometry.py，不能直接 ``import geometry`` 复用Q2，否则会
 # 命中当前模块自身。使用独立模块名显式加载Q2几何内核。

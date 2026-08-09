@@ -1,13 +1,15 @@
+import importlib.util
 import os
-import sys
 import unittest
 
 import numpy as np
 
 
 Q4_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, Q4_DIR)
-import geometry as geo  # noqa: E402
+_SPEC = importlib.util.spec_from_file_location(
+    'q4_geometry', os.path.join(Q4_DIR, 'geometry.py'))
+geo = importlib.util.module_from_spec(_SPEC)
+_SPEC.loader.exec_module(geo)
 
 
 class TestClippedBall(unittest.TestCase):

@@ -1,11 +1,19 @@
 # 本程序及代码是在AI工具辅助下完成的
 """问题4混合介质蒙特卡洛与成本计算。"""
 
+import importlib.util
+import os
 import time
 
 import numpy as np
 
-import geometry as geo
+# 显式加载本目录 geometry：与 Q2 的 geometry/monte_carlo 同名，普通
+# import 可能命中另一目录版本，全量测试聚合时出错。
+_SPEC = importlib.util.spec_from_file_location(
+    'q4_geometry', os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                'geometry.py'))
+geo = importlib.util.module_from_spec(_SPEC)
+_SPEC.loader.exec_module(geo)
 
 
 Z_WILSON = 1.959964
