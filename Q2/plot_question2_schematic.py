@@ -180,7 +180,6 @@ def main():
     ax.tick_params(labelsize=8)
     ax.set_xlabel('x (nm)')
     ax.set_ylabel('y (nm)')
-    ax.set_title('问题2：接触网络导通机理示意（周期平移与 1.8 nm 接触阈值）')
 
     draw_electrodes_and_box(ax)
     draw_background(ax)

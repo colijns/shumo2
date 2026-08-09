@@ -33,9 +33,8 @@
 - 图 4：介质A体积分数与导通概率（Q2/plot_question2.py，png 300 dpi + pdf 矢量双格式，已入池 docs/appendix/figures/）
 - AI 辅助：折线+误差棒绘图框架（Wilson CI 误差棒、N_A 标注、中文字体样式）；人工负责：确认体积分数横轴单位、CI 上下界与 CSV 数据一致、核对读图结论。
 - 图 7：随机微构体几何统计量随体积分数变化（Q2/plot_question2_statistics.py，png + pdf 双格式，已入池）
-- 图 8：轴线跨壁率与理论值一致性验证（Q2/plot_question2_statistics.py，png + pdf 双格式，已入池）
 - 图 9：接触网络导通机理示意（Q2/plot_question2_schematic.py，png + pdf 双格式，已入池）
-- AI 辅助：三线统计图 + 上轴 N_A 刻度、局部放大 y 轴跨壁率验证、接触网络机理示意（电极带/导通链/平移同源片段/阈值放大插图）；人工负责：确认统计量取值与 JSON 一致、理论跨壁率 60.08% 常量、示意几何坐标与阈值语义。
+- AI 辅助：三线统计图 + 上轴 N_A 刻度、接触网络机理示意（电极带/导通链/平移同源片段/阈值放大插图）；人工负责：确认统计量取值与 JSON 一致、示意几何坐标与阈值语义。
 
 #### 问题3 已完成配图（2026-08-08）
 - 图 5：导通概率随介质数量变化与 90% 临界数量（Q3/plot_question3.py，png + pdf 双格式，已入池 docs/appendix/figures/）

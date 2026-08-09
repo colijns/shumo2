@@ -1,7 +1,7 @@
 # 本绘图程序在AI工具辅助下完成
 # AI工具名称：DeepSeek‑V4‑Flash，版本 / 型号：DeepSeek‑V4‑Flash‑0731，开发机构 / 公司：深度求索（DeepSeek），版本发布日期：2026‑07‑31
 
-"""问题2 附图：几何统计量随体积分数变化（图7）+ 跨壁率与理论值一致性验证（图8）。
+"""问题2 附图：几何统计量随体积分数变化（图7）。
 
 数据来源：Q2/results/question2_result.json（蒙特卡洛 M=2000/体积分数，
 批次 seed=42+100000*体积分数序号+批次号），理论跨壁率取 model 字段，不硬编码。
@@ -81,7 +81,6 @@ def plot_statistics(rows):
 
     ax.set_xlabel('体积分数 φ（%）')
     ax.set_ylabel('每样本平均数量（根）')
-    ax.set_title('问题2：随机微构体几何统计量随体积分数变化（M=2000）')
     ax.set_xticks([0.5, 0.6, 0.7, 1.0])
     ax.set_xlim(0.45, 1.05)
     ax.set_ylim(0, 1350)  # 含原点，强调片段/跨壁近似过原点线性
@@ -98,45 +97,9 @@ def plot_statistics(rows):
     save_pair(fig, '问题2_几何统计量_vs_体积分数')
 
 
-def plot_crossing_rate(rows, theory):
-    """图8：四考察点实测平均跨壁率 vs 理论值（轴线各向同性随机）。
-
-    y 轴局部放大（59.96~60.17）拉开实测点与理论线的差异；
-    偏差文本框说明最大相对偏差 ≈ 0.16%，落在 M=2000 抽样波动量级。
-    """
-    phis = np.array([r['phi'] for r in rows]) * 100
-    rates = np.array([r['mean_crossing_rate'] for r in rows]) * 100
-
-    fig, ax = plt.subplots(figsize=(7, 4.6))
-    ax.axhline(theory * 100, color='#d62728', linestyle='--', linewidth=1.6,
-               label=f'理论值 {theory * 100:.2f}%')
-    ax.plot(phis, rates, 'o', color='#1f77b4', markersize=7,
-            markeredgecolor='white', markeredgewidth=0.8,
-            label='实测平均跨壁率（M=2000）')
-    for x, y in zip(phis, rates):
-        ax.annotate(f'{y:.2f}%', (x, y), textcoords='offset points',
-                    xytext=(0, 9), fontsize=9, ha='center')
-
-    ax.set_xlabel('体积分数 φ（%）')
-    ax.set_ylabel('平均跨壁率（%）')
-    ax.set_title('问题2：轴线跨壁率与理论值一致性验证（M=2000）')
-    ax.set_xticks([0.5, 0.6, 0.7, 1.0])
-    ax.set_xlim(0.45, 1.05)
-    ax.set_ylim(59.96, 60.17)  # 局部放大：实测 59.98%~60.13%，理论 60.08%
-    ax.grid(True, linestyle='--', alpha=0.5)
-    ax.text(0.98, 0.05,
-            '实测与理论最大相对偏差 ≈ 0.16%\n（59.98%~60.13% vs 理论 60.08%）',
-            transform=ax.transAxes, ha='right', va='bottom', fontsize=9,
-            bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
-    ax.legend(loc='upper left')
-
-    save_pair(fig, '问题2_跨壁率_验证')
-
-
 def main():
     rows, theory = load_results()
     plot_statistics(rows)
-    plot_crossing_rate(rows, theory)
     print(f'图池：{APPENDIX_FIG_DIR}')
 
 
