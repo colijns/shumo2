@@ -33,7 +33,64 @@ N_SIDES = int(os.environ.get('SHUMO_Q2_SOLID_SIDES', '64'))
 WORKERS = int(os.environ.get(
     'SHUMO_Q2_SOLID_WORKERS', str(min(8, os.cpu_count() or 1))))
 BASE_SEED = int(os.environ.get('SHUMO_Q2_SOLID_SEED', '20260808'))
-OUTPUT = os.path.join(HERE, 'results', 'solid_boundary_comparison.json')
+OUTPUT = os.environ.get(
+    'SHUMO_Q2_SOLID_OUTPUT',
+    os.path.join(HERE, 'results', 'solid_boundary_comparison.json'))
+CHECKPOINT = os.environ.get(
+    'SHUMO_Q2_SOLID_CHECKPOINT',
+    os.path.join(HERE, 'results', 'solid_boundary_checkpoint.json'))
+CHECKPOINT_EVERY = int(os.environ.get('SHUMO_Q2_SOLID_CHECKPOINT_EVERY', '20'))
+
+
+def _run_config():
+    return {
+        'phis': list(PHIS),
+        'trials_per_phi': TRIALS,
+        'n_sides': N_SIDES,
+        'base_seed': BASE_SEED,
+    }
+
+
+def _atomic_json_dump(path, payload):
+    """先写临时文件再原子替换，避免中断留下半个 JSON。"""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    temporary = path + '.tmp'
+    with open(temporary, 'w', encoding='utf-8') as handle:
+        json.dump(payload, handle, ensure_ascii=False, indent=2)
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(temporary, path)
+
+
+def _load_checkpoint():
+    if not os.path.exists(CHECKPOINT):
+        return []
+    with open(CHECKPOINT, encoding='utf-8') as handle:
+        payload = json.load(handle)
+    if payload.get('config') != _run_config():
+        print('checkpoint ignored: configuration differs', flush=True)
+        return []
+    samples = payload.get('samples', [])
+    valid = []
+    seen = set()
+    for sample in samples:
+        key = (int(sample['phi_index']), int(sample['trial_index']))
+        if (0 <= key[0] < len(PHIS) and 0 <= key[1] < TRIALS
+                and key not in seen):
+            valid.append(sample)
+            seen.add(key)
+    print(f'checkpoint loaded: {len(valid)}/{len(PHIS) * TRIALS}', flush=True)
+    return valid
+
+
+def _save_checkpoint(samples, complete=False):
+    _atomic_json_dump(CHECKPOINT, {
+        'config': _run_config(),
+        'complete': bool(complete),
+        'completed_samples': len(samples),
+        'total_samples': len(PHIS) * TRIALS,
+        'samples': samples,
+    })
 
 
 def _one_sample(args):
@@ -105,16 +162,31 @@ def _summary(phi, samples):
 
 
 def main():
-    if TRIALS <= 0 or N_SIDES < 8 or WORKERS <= 0:
+    if (TRIALS <= 0 or N_SIDES < 8 or WORKERS <= 0
+            or CHECKPOINT_EVERY <= 0):
         raise ValueError('试验数、棱柱边数和进程数必须为正，且棱柱边数至少为 8')
+    samples_all = _load_checkpoint()
+    completed = {(int(sample['phi_index']), int(sample['trial_index']))
+                 for sample in samples_all}
     jobs = [(phi_index, trial_index, phi)
             for phi_index, phi in enumerate(PHIS)
-            for trial_index in range(TRIALS)]
+            for trial_index in range(TRIALS)
+            if (phi_index, trial_index) not in completed]
     started = time.perf_counter()
     grouped = [[] for _ in PHIS]
-    with ProcessPoolExecutor(max_workers=min(WORKERS, len(jobs))) as executor:
-        for sample in executor.map(_one_sample, jobs):
-            grouped[sample['phi_index']].append(sample)
+    for sample in samples_all:
+        grouped[int(sample['phi_index'])].append(sample)
+    if jobs:
+        with ProcessPoolExecutor(max_workers=min(WORKERS, len(jobs))) as executor:
+            for sample in executor.map(_one_sample, jobs):
+                samples_all.append(sample)
+                grouped[sample['phi_index']].append(sample)
+                if len(samples_all) % CHECKPOINT_EVERY == 0:
+                    _save_checkpoint(samples_all)
+                    print(
+                        f'checkpoint: {len(samples_all)}/'
+                        f'{len(PHIS) * TRIALS}', flush=True)
+    _save_checkpoint(samples_all, complete=True)
 
     rows = []
     for phi_index, phi in enumerate(PHIS):
@@ -143,16 +215,14 @@ def main():
             'n_sides': N_SIDES,
             'radial_error_bound_nm': solid_geometry.radial_error_bound(
                 axis_geometry.R, N_SIDES),
-            'workers': min(WORKERS, len(jobs)),
+            'workers': min(WORKERS, max(1, len(jobs))),
             'base_seed': BASE_SEED,
             'seed_formula': 'base_seed + 100000*phi_index + trial_index',
         },
         'rows': rows,
         'wall_elapsed_s': time.perf_counter() - started,
     }
-    os.makedirs(os.path.dirname(OUTPUT), exist_ok=True)
-    with open(OUTPUT, 'w', encoding='utf-8') as handle:
-        json.dump(payload, handle, ensure_ascii=False, indent=2)
+    _atomic_json_dump(OUTPUT, payload)
     print(f'written: {OUTPUT}')
 
 
