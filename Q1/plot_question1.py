@@ -4,11 +4,13 @@
 AI工具名称：DeepSeek-V4-Flash（Claude Code）v4-flash，杭州深度求索人工智能基础技术研究有限公司，使用日期 2026-08-07。
 
 功能：问题1 三组微构体的接触网络与导电路径 3D 配图
-规格：docs/问题1.md；数据：results/question1_result.json + attachment/附件.xlsx
+规格：docs/问题1报告_修订版.md；数据：results/question1_result.json + attachment/附件.xlsx
 用法：python plot_question1.py
 输出：Q1/figures/ 下每组 png（300 dpi）+ pdf（矢量）双格式；
       docs/appendix/figures/ 入池副本（competition-record 步骤 4）
 
+口径：以统一口径修订版为准——主结果按片段实际位置判定（pbc=False），
+      不导通组（组1）witness_path 为空，仅显示接触边，无路径高亮。
 图例：黄色粗线 = 见证导电路径上的介质；红色粗线 = 路径接触边；
       灰色细线 = 其余介质；黑色细线 = 其余接触边；
       半透明黄面 = 左右带电面。
@@ -78,12 +80,16 @@ def main():
         p1 = c - h[:, None] * u
         p2 = c + h[:, None] * u
 
-        path_nodes = set(int(v[1:]) - 1 for v in group['witness_path'][1:-1])
-        path_edges = set()
+        # 统一口径主结果：不导通组 witness_path 为 null（如组1），
+        # 此时无路径节点与路径边，直接跳过路径高亮。
         wp = group['witness_path']
-        for a, b in zip(wp[1:-1], wp[2:-1]):
-            path_edges.add((min(int(a[1:]) - 1, int(b[1:]) - 1),
-                            max(int(a[1:]) - 1, int(b[1:]) - 1)))
+        path_nodes = set()
+        path_edges = set()
+        if wp:
+            path_nodes = set(int(v[1:]) - 1 for v in wp[1:-1])
+            for a, b in zip(wp[1:-1], wp[2:-1]):
+                path_edges.add((min(int(a[1:]) - 1, int(b[1:]) - 1),
+                                max(int(a[1:]) - 1, int(b[1:]) - 1)))
 
         fig = plt.figure(figsize=(9, 8))
         ax = fig.add_subplot(111, projection='3d')
@@ -123,11 +129,15 @@ def main():
             if group['witness_path'] else ''
         ax.set_title(f"{group['name']} 微构体接触网络与导电路径：{state} {path_txt}")
 
-        # 图例（手动构造）
+        # 图例（手动构造）：无见证路径时（不导通组）不显示路径相关项
         from matplotlib.lines import Line2D
-        legend_items = [
-            Line2D([0], [0], color='#f9a825', linewidth=3.2, label='见证路径介质'),
-            Line2D([0], [0], color='#d32f2f', linewidth=2.6, label='路径接触边'),
+        legend_items = []
+        if wp:
+            legend_items += [
+                Line2D([0], [0], color='#f9a825', linewidth=3.2, label='见证路径介质'),
+                Line2D([0], [0], color='#d32f2f', linewidth=2.6, label='路径接触边'),
+            ]
+        legend_items += [
             Line2D([0], [0], color='0.65', linewidth=1.0, label='其余介质（轴线）'),
             Line2D([0], [0], color='0.25', linewidth=0.7, label='其余接触边'),
             Line2D([0], [0], color='#ffd54f', linewidth=4, alpha=0.5, label='左右带电面'),
