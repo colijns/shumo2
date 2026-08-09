@@ -51,6 +51,24 @@ class TestBallPolyhedron(unittest.TestCase):
 
 class TestUnifiedGraph(unittest.TestCase):
 
+    def test_analytic_contact_bounds_match_gjk_reference(self):
+        rng = np.random.default_rng(314159)
+        c, u, h = axis_geometry.generate_cylinders(18, rng)
+        balls = rng.uniform(-smg.HALF_L, smg.HALF_L, size=(24, 3))
+        for mode in ('inscribed', 'circumscribed'):
+            fragments = (smg.wrap_cylinder_fragments(
+                c, u, h, n_sides=16, mode=mode)
+                + smg.wrap_ball_fragments(
+                    balls, subdivisions=1, mode=mode))
+            fast, _, _ = smg._contact_edges(
+                fragments, cyl_sides=16, ball_subdivisions=1,
+                mode=mode, use_analytic_bounds=True)
+            reference, _, _ = smg._contact_edges(
+                fragments, cyl_sides=16, ball_subdivisions=1,
+                mode=mode, use_analytic_bounds=False)
+            self.assertEqual(set(map(tuple, fast.tolist())),
+                             set(map(tuple, reference.tolist())))
+
     def test_pure_a_matches_q3_trial_by_trial(self):
         c = np.array([[-2499.0, 0.0, 0.0],
                       [2499.0, 61.0, 0.0]])

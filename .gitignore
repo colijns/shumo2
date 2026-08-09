@@ -43,6 +43,12 @@ attachment/
 *.7z
 node_modules/
 
+# Q4长时蒙特卡洛本地检查点与日志（可续算，不作为仓库结果）
+Q4/results/*checkpoint*.json
+Q4/results/*checkpoint*.json.bak
+Q4/results/question4_unified_a_summary.json
+Q4/logs/*.log
+
 # AI 留存附录（比赛提交材料，强制入库，豁免上方 *.png/*.pdf/*.xlsx 等规则）
 !docs/appendix/
 !docs/appendix/**

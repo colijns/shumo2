@@ -230,6 +230,39 @@ def _point_finite_cylinder_distance(p1, p2, point, radius):
     return float(np.hypot(axial_excess, radial_excess))
 
 
+def _segment_distance_params(p1, p2, q1, q2):
+    """两线段最短距离及最近点参数，参数位于[0,1]。"""
+    a1 = np.asarray(p1, dtype=float)[None, :]
+    b1 = np.asarray(p2, dtype=float)[None, :]
+    a2 = np.asarray(q1, dtype=float)[None, :]
+    b2 = np.asarray(q2, dtype=float)[None, :]
+    uvec = b1 - a1
+    vvec = b2 - a2
+    w = a1 - a2
+    uu = np.einsum('ij,ij->i', uvec, uvec)
+    uv = np.einsum('ij,ij->i', uvec, vvec)
+    vv = np.einsum('ij,ij->i', vvec, vvec)
+    uw = np.einsum('ij,ij->i', uvec, w)
+    vw = np.einsum('ij,ij->i', vvec, w)
+    denominator = uu * vv - uv * uv
+    s = np.where(
+        denominator < 1e-24, 0.0,
+        np.clip((uv * vw - vv * uw) / np.maximum(denominator, 1e-24),
+                0.0, 1.0))
+    t = (uv * s + vw) / np.maximum(vv, 1e-24)
+    low = t < 0.0
+    s = np.where(low, np.clip(-uw / np.maximum(uu, 1e-24), 0.0, 1.0), s)
+    t = np.where(low, 0.0, t)
+    high = t > 1.0
+    s = np.where(high,
+                 np.clip((uv - uw) / np.maximum(uu, 1e-24), 0.0, 1.0), s)
+    t = np.where(high, 1.0, t)
+    first_point = a1 + s[:, None] * uvec
+    second_point = a2 + t[:, None] * vvec
+    distance = np.linalg.norm(first_point - second_point, axis=1)
+    return float(distance[0]), float(s[0]), float(t[0])
+
+
 def _contained_radius(fragment, cyl_sides, ball_subdivisions, mode):
     if fragment.kind == 0:
         return (axis_geometry.R * np.cos(np.pi / int(cyl_sides))
@@ -239,7 +272,8 @@ def _contained_radius(fragment, cyl_sides, ball_subdivisions, mode):
 
 
 def _contact_edges(fragments, cyl_sides=32, ball_subdivisions=2,
-                   mode='inscribed', delta=DELTA):
+                   mode='inscribed', delta=DELTA,
+                   use_analytic_bounds=True):
     """AABB预筛后用安全解析界缩小临界带，其余统一调用凸体GJK。"""
     edges = []
     candidates = _candidate_pairs(fragments, delta)
@@ -250,14 +284,22 @@ def _contact_edges(fragments, cyl_sides=32, ball_subdivisions=2,
         rejected = False
         # A-A轴线距离减外接半径是安全下界，可排除长AABB造成的大量伪候选。
         if first.kind == second.kind == 0:
-            axis_distance = axis_geometry.segment_distance_batch(
-                first.axis_p1[None, :], first.axis_p2[None, :],
-                second.axis_p1[None, :], second.axis_p2[None, :])[0]
+            axis_distance, first_t, second_t = _segment_distance_params(
+                first.axis_p1, first.axis_p2,
+                second.axis_p1, second.axis_p2)
             rejected = axis_distance > (
                 first.enclosing_radius + second.enclosing_radius
                 + delta + TOL)
+            if (use_analytic_bounds and not rejected
+                    and not first.clipped and not second.clipped
+                    and 1e-10 < first_t < 1.0 - 1e-10
+                    and 1e-10 < second_t < 1.0 - 1e-10):
+                contained = _contained_radius(
+                    first, cyl_sides, ball_subdivisions, mode)
+                accepted = axis_distance <= 2.0 * contained + delta + TOL
         # 未裁剪B-B：外接半径可安全拒绝，内含球可安全接受；仅窄带走GJK。
-        elif first.kind == second.kind == 1 and not first.clipped and not second.clipped:
+        elif (use_analytic_bounds and first.kind == second.kind == 1
+              and not first.clipped and not second.clipped):
             center_distance = float(np.linalg.norm(first.axis_p1 - second.axis_p1))
             if center_distance > (first.enclosing_radius
                                   + second.enclosing_radius + delta + TOL):
@@ -267,7 +309,8 @@ def _contact_edges(fragments, cyl_sides=32, ball_subdivisions=2,
                     first, cyl_sides, ball_subdivisions, mode)
                 accepted = center_distance <= 2.0 * contained + delta + TOL
         # 未裁剪A-B：以同轴内含/外包圆柱和B半径给安全接受/拒绝界。
-        elif first.kind != second.kind and not first.clipped and not second.clipped:
+        elif (use_analytic_bounds and first.kind != second.kind
+              and not first.clipped and not second.clipped):
             a = first if first.kind == 0 else second
             b = second if first.kind == 0 else first
             a_contained = _contained_radius(
