@@ -21,10 +21,10 @@
       "ci_upper": 0.10387105321692687,
       "mean_fragments": 618.9435,
       "mean_crossing": 212.3395,
-      "mean_crossing_rate": 0.5998290960451977,
+      "mean_crossing_rate": 0.5998290960451976,
       "mean_edges": 159.347,
       "mean_gjk": 160.6325,
-      "elapsed_s": 482.23118169999975
+      "elapsed_s": 293.37372440000036
     },
     {
       "phi": 0.006,
@@ -39,7 +39,7 @@
       "mean_crossing_rate": 0.6012783018867924,
       "mean_edges": 228.347,
       "mean_gjk": 230.1665,
-      "elapsed_s": 750.1840292000002
+      "elapsed_s": 355.1469590000005
     },
     {
       "phi": 0.007,
@@ -54,7 +54,7 @@
       "mean_crossing_rate": 0.6005090909090909,
       "mean_edges": 311.4085,
       "mean_gjk": 313.9455,
-      "elapsed_s": 1144.7413861
+      "elapsed_s": 525.3971559000004
     },
     {
       "phi": 0.01,
@@ -66,11 +66,11 @@
       "ci_upper": 0.9969261030041899,
       "mean_fragments": 1237.399,
       "mean_crossing": 424.988,
-      "mean_crossing_rate": 0.6011145685997171,
+      "mean_crossing_rate": 0.601114568599717,
       "mean_edges": 636.155,
       "mean_gjk": 641.419,
-      "elapsed_s": 2502.9807867
+      "elapsed_s": 961.3604345000008
     }
   ],
-  "wall_elapsed_s": 613.4958883999998
+  "wall_elapsed_s": 269.4744461
 }
