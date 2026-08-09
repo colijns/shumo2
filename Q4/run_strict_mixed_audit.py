@@ -7,7 +7,8 @@
 * outer的Wilson上限 < 0.90：可靠不足；
 * 其他：待追加样本或提高几何分辨率。
 
-默认候选包含原Q4搜索点、7个低成本跨线点、617附近纯A点以及统一推荐619。
+默认候选包含原Q4搜索点、全部6个含B跨线点及1个617附近含B对照点。
+纯A方案不在Q4重复抽样，统一引用Q3的M=10000严格实体结果。
 程序按trial保存检查点，M可从小样本直接扩展到正式样本而不重复已完成试验。
 
 常用环境变量：SHUMO_Q4_STRICT_TRIALS、SHUMO_Q4_STRICT_WORKERS、
@@ -43,15 +44,18 @@ from monte_carlo import wilson_ci  # noqa: E402
 TARGET = 0.90
 FAMILY_ALPHA = 0.05
 FORMAL_RECOMMENDATION = (619, 0)
+FORMAL_TRIALS = 4000
 A_SEQUENCE_LENGTH_DEFAULT = 750
-DEFAULT_CANDIDATES = (
+MIXED_CANDIDATES = (
     (598, 62),
-    (609, 5), (608, 14), (610, 4), (611, 0), (610, 12),
-    (616, 0), (617, 0), (617, 1), (618, 0), (619, 0),
+    (609, 5), (608, 14), (610, 4),
+    (611, 3), (610, 12), (609, 21),
+    (617, 1),
 )
+DEFAULT_CANDIDATES = MIXED_CANDIDATES
 RESULT_DIR = os.path.join(HERE, 'results')
 CHECKPOINT = os.path.join(
-    RESULT_DIR, 'question4_strict_mixed_checkpoint_nA750.json')
+    RESULT_DIR, 'question4_strict_mixed_checkpoint_v2_nA750.json')
 CHECKPOINT_BACKUP = CHECKPOINT + '.bak'
 SUMMARY = os.path.join(RESULT_DIR, 'question4_strict_mixed_summary.json')
 CSV_RESULT = os.path.join(RESULT_DIR, 'question4_strict_mixed_candidates.csv')
@@ -280,9 +284,15 @@ def summarize(candidates, rows, cyl_sides, ball_subdivisions, base_seed,
             if row['cost_yuan'] < joint_cheapest['cost_yuan']
             and row['joint_strict_verdict']
             != 'joint_reliably_insufficient']
-    formal_row = next(
-        (row for row in result_rows
-         if (row['N_A'], row['N_B']) == FORMAL_RECOMMENDATION), None)
+    joint_insufficient = [
+        row for row in result_rows
+        if row['joint_strict_verdict'] == 'joint_reliably_insufficient']
+    joint_undetermined = [
+        row for row in result_rows
+        if row['joint_strict_verdict'] == 'joint_undetermined']
+    joint_mixed_feasible = [
+        row for row in result_rows
+        if row['joint_strict_verdict'] == 'joint_reliably_feasible']
     return {
         'method': 'A圆柱+B球体内接/外切多面体周期实体夹逼',
         'config': {
@@ -309,14 +319,22 @@ def summarize(candidates, rows, cyl_sides, ball_subdivisions, base_seed,
         'stage_joint_cheapest_reliably_feasible': joint_cheapest,
         'joint_cheaper_unresolved_count': len(joint_cheaper_unresolved),
         'joint_cheaper_unresolved': joint_cheaper_unresolved,
+        'screened_mixed_status_counts': {
+            'reliably_insufficient': len(joint_insufficient),
+            'undetermined': len(joint_undetermined),
+            'reliably_feasible': len(joint_mixed_feasible),
+        },
         'formal_unified_recommendation': {
             'N_A': FORMAL_RECOMMENDATION[0],
             'N_B': FORMAL_RECOMMENDATION[1],
             'source': 'Q3 M=10000 strict solid bound',
-            'candidate_audit': formal_row,
+            'candidate_audit': None,
+            'note': '纯A不纳入Q4混合候选重复检验',
         },
+        'formal_recommendation_supported_within_screened_mixed_set': bool(
+            len(joint_insufficient) == len(result_rows)),
         'global_claim_ready_within_candidate_set': bool(
-            joint_cheapest is not None and not joint_cheaper_unresolved),
+            not joint_undetermined),
     }
 
 
@@ -404,7 +422,8 @@ def main():
                         help='只查看检查点状态，不启动模拟')
     args = parser.parse_args()
 
-    trials = int(os.environ.get('SHUMO_Q4_STRICT_TRIALS', '4000'))
+    trials = int(os.environ.get(
+        'SHUMO_Q4_STRICT_TRIALS', str(FORMAL_TRIALS)))
     workers = int(os.environ.get(
         'SHUMO_Q4_STRICT_WORKERS', str(min(8, os.cpu_count() or 1))))
     base_seed = int(os.environ.get('SHUMO_Q4_STRICT_SEED', '20260808'))
@@ -447,6 +466,11 @@ def main():
         candidates, rows, cyl_sides, ball_subdivisions, base_seed,
         a_sequence_length)
     summary['elapsed_s'] = time.perf_counter() - started
+    summary['predeclared_formal_trials'] = FORMAL_TRIALS
+    summary['run_status'] = (
+        'formal_complete_M4000'
+        if trials == FORMAL_TRIALS and not args.smoke
+        else 'nonformal_custom_or_smoke_run')
 
     _write_result_files(summary)
 
@@ -472,8 +496,13 @@ def main():
         print(f"候选族联合95%阶段最低可靠候选："
               f"({joint_best['N_A']},{joint_best['N_B']})；"
               f"其下仍待定 {summary['joint_cheaper_unresolved_count']} 个")
-    print('最终统一保守推荐（来自Q3 M=10000）：(619,0)，'
-          '不由本批阶段最低点覆盖。')
+    counts = summary['screened_mixed_status_counts']
+    print('含B候选联合判定：'
+          f"不足 {counts['reliably_insufficient']}，"
+          f"待定 {counts['undetermined']}，"
+          f"可行 {counts['reliably_feasible']}")
+    print('纯A保守基准（来自Q3 M=10000）：(619,0)；'
+          'Q4只检验含B方案能否以更低成本替代该基准。')
     print(f"上下界违例：{summary['bracket_violations']}")
     print(f'结果：{SUMMARY}')
 

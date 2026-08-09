@@ -771,7 +771,8 @@ def main():
             print('统一口径提醒：当前候选的 N_B=0，最终数量须以 '
                   'Q4/run_unified_a_audit.py 的Q3严格实体复核为准。')
         print('严格混合复核：低成本临界候选请运行 '
-              'Q4/run_strict_mixed_audit.py；固定A序列长度为750，'
+              'Q4/run_strict_mixed_audit.py；只检验8个含B候选，'
+              '纯A直接引用Q3，固定A序列长度为750，'
               '未完成大样本前不得把探索结果作为最终结论。'
               '可加 --status 仅查看检查点。')
 
