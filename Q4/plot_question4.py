@@ -107,8 +107,9 @@ def plot_cost_probability():
     """图1：成本-导通概率散点图（搜索点 + 高概率前景 + 独立复算关键候选标注）。
 
     横轴为总成本 C = c_A·N_A + c_B·N_B，纵轴为导通概率点估计；全部搜索评估点
-    作灰色背景（大量低成本点概率极低，直观显示介质 B 无长程连通优势），
-    p̂≥0.85 的候选按 N_B 着色，叠加独立种子复算的关键候选（星=可靠 / 叉=跨线）。
+    作灰色背景，x 轴放大至有效候选集中区 8.3~9.65 元（低成本段 90% 点概率
+    极低、无可读信息，裁掉以放大高概率区），p̂≥0.85 的候选按 N_B 着色，
+    叠加独立种子复算的关键候选（星=可靠 / 叉=跨线）。
     """
     na, nb, p = load_points(CSV_POINTS)
     res = load_result(CSV_RESULT)
@@ -145,24 +146,25 @@ def plot_cost_probability():
     # 0.90 目标线
     ax.axhline(P_TARGET, color='#C44E52', ls='--', lw=1.5,
                label='目标概率 $P=0.90$')
-    # 关键候选文字标注
+    # 关键候选文字标注（白底框压灰点，窗口内重摆）
+    bbox_kw = dict(boxstyle='round,pad=0.25', fc='white', ec='none', alpha=0.9)
     ax.annotate('搜索定位 $(598,62)$：\n8.981 元，$M=100$ 点估计 0.90，不可靠',
-                xy=(c_a * 598 + c_b * 62, 0.90), xytext=(6.6, 0.80),
-                fontsize=8.5, color='#333333',
+                xy=(c_a * 598 + c_b * 62, 0.90), xytext=(8.35, 0.86),
+                fontsize=8.5, color='#333333', bbox=bbox_kw,
                 arrowprops=dict(arrowstyle='->', color='#333333', lw=0.9))
     ax.annotate('$(608,14)$ 9.049 元：\n独立复算跨线',
-                xy=(c_a * 608 + c_b * 14, 0.8925), xytext=(7.4, 0.60),
-                fontsize=8.5, color='#4C72B0',
+                xy=(c_a * 608 + c_b * 14, 0.8925), xytext=(8.38, 0.62),
+                fontsize=8.5, color='#4C72B0', bbox=bbox_kw,
                 arrowprops=dict(arrowstyle='->', color='#4C72B0', lw=0.9))
     ax.annotate(f'独立复算可靠 $({na_star},{nb_star})$ {c_star:.4f} 元',
-                xy=(c_star, 0.91075), xytext=(c_star - 0.25, 0.965),
-                fontsize=8.5, color='#2e7d32',
+                xy=(c_star, 0.91075), xytext=(c_star - 0.10, 0.99),
+                fontsize=8.5, color='#2e7d32', bbox=bbox_kw,
                 arrowprops=dict(arrowstyle='->', color='#2e7d32', lw=0.9))
     ax.set_xlabel('总成本 $C=c_A N_A+c_B N_B$（元）')
     ax.set_ylabel('导通概率点估计 $\\hat P$')
-    ax.set_xlim(4.4, 9.3)
+    ax.set_xlim(8.3, 9.65)  # 有效候选集中在 8.5~9.5 元，放大该窗口
     ax.set_ylim(0.0, 1.02)
-    ax.legend(loc='upper right', fontsize=8.5)
+    ax.legend(loc='lower right', fontsize=8.5, framealpha=0.95)
     ax.grid(alpha=0.25)
     fig.tight_layout()
     save_pair(fig, '问题4_混合导通热图')
