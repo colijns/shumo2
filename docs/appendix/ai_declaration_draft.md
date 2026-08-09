@@ -35,7 +35,7 @@
 - 图 7：随机微构体实体几何统计量随体积分数变化（Q2/plot_question2_statistics.py，png + pdf 双格式，已入池）
 - AI 辅助：片段与跨壁 2 线统计图（外切与内接重合不另画）+ 上轴 N_A 刻度；人工负责：确认统计量取值与 JSON 一致、删除旧接触边线、确认外切重合可省略。
 - 图 8：跨壁圆柱比例诊断（Q2/plot_question2_crossing_ratio.py，png + pdf 双格式，已入池）
-- AI 辅助：实体实测柱 + 理论虚线柱状图框架；人工负责：确认比例按 Σ(mean_crossing×m)/Σ(n_A×m) 实算、理论率取 sensitivity 文件、口径统一后移除轴线对照内容、核对读图结论。
+- AI 辅助：实测柱 + 理论虚线柱状图框架（轴线/实体对照）；人工负责：确认比例按 Σ(mean_crossing×m)/Σ(n_A×m) 实算、理论率取 sensitivity 文件、核对读图结论。
 
 #### 问题3 已完成配图（2026-08-08）
 - 图 5：导通概率随介质数量变化与 90% 临界数量（Q3/plot_question3.py，png + pdf 双格式，已入池 docs/appendix/figures/）
