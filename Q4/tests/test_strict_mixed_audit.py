@@ -22,6 +22,15 @@ import run_strict_mixed_audit as audit  # noqa: E402
 
 class TestStrictVerdict(unittest.TestCase):
 
+    def test_mixed_candidate_set_covers_every_crossing_point(self):
+        crossing_mixed = {
+            (609, 5), (608, 14), (610, 4),
+            (611, 3), (610, 12), (609, 21),
+        }
+        self.assertTrue(crossing_mixed.issubset(audit.MIXED_CANDIDATES))
+        self.assertEqual(len(audit.MIXED_CANDIDATES), 8)
+        self.assertTrue(all(n_b > 0 for _, n_b in audit.MIXED_CANDIDATES))
+
     def test_result_files_are_atomically_writable(self):
         summary = {
             'config': {'trials': 1},
@@ -101,8 +110,8 @@ class TestStrictVerdict(unittest.TestCase):
     def test_joint_interval_is_wider_than_pointwise_interval(self):
         _, point_inner, point_outer = audit.strict_verdict(92, 94, 100)
         _, joint_inner, joint_outer, alpha_each = \
-            audit.joint_strict_verdict(92, 94, 100, n_candidates=11)
-        self.assertAlmostEqual(alpha_each, 0.05 / 22)
+            audit.joint_strict_verdict(92, 94, 100, n_candidates=8)
+        self.assertAlmostEqual(alpha_each, 0.05 / 16)
         self.assertLessEqual(joint_inner[0], point_inner[0])
         self.assertGreaterEqual(joint_outer[1], point_outer[1])
 
@@ -128,6 +137,27 @@ class TestStrictVerdict(unittest.TestCase):
         self.assertFalse(summary['global_claim_ready_within_candidate_set'])
         self.assertEqual(
             summary['formal_unified_recommendation']['N_A'], 619)
+
+    def test_all_mixed_candidates_insufficient_supports_q3_fallback(self):
+        candidates = ((1, 1), (2, 1))
+        rows = []
+        for trial in range(100):
+            rows.append({
+                'trial_index': trial,
+                'inner': [0, 0],
+                'outer': [int(trial < 20), int(trial < 30)],
+                'bracket_violations': 0,
+                'inner_gjk': 0,
+                'outer_gjk': 0,
+            })
+        summary = audit.summarize(
+            candidates, rows, cyl_sides=32,
+            ball_subdivisions=2, base_seed=42)
+        self.assertTrue(
+            summary['formal_recommendation_supported_within_screened_mixed_set'])
+        self.assertTrue(summary['global_claim_ready_within_candidate_set'])
+        self.assertEqual(
+            summary['screened_mixed_status_counts']['reliably_insufficient'], 2)
 
 
 if __name__ == '__main__':
