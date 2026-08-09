@@ -702,6 +702,9 @@ def main():
 
         # ---------- 8. 结果汇总与 CSV（最终判定源 = 独立复算） ----------
         v_fin, lo_fin, hi_fin = wilson_verdict(x_fin, m_fin)
+        # 统一口径：纯A退化情形必须由Q3严格实体内/外界复核；这里的混合
+        # 几何结果只保留为搜索候选，不能覆盖严格纯A推荐。
+        strict_a_audit_required = (nb_fin == 0)
         phi_a = na_fin * gm.V_A_UM3 / 1000.0 * 100.0      # 体积分数 %
         phi_b = nb_fin * gm.V_B_UM3 / 1000.0 * 100.0
         c_fin = point_cost((na_fin, nb_fin))
@@ -710,6 +713,9 @@ def main():
             'c_A_元': gm.c_A, 'c_B_元': gm.c_B,
             'M_search': m_search, 'M_final': m_final, 'M_base': m_base,
             'M_anchor': anchor_m,
+            'strict_A_audit_required': strict_a_audit_required,
+            'strict_A_audit_command': ('python Q4/run_unified_a_audit.py'
+                                       if strict_a_audit_required else ''),
             'N_A_hat90': n_a_hat, 'N_A_safe': n_a_safe, '纯A成本_元': cost_a,
             'N_B_hat90': n_b_hat, 'N_B_safe': n_b_safe,
             '纯B成本_元': cost_b if cost_b is not None else '不可行',
@@ -759,6 +765,9 @@ def main():
         print(f'验证             : {len(v_pts)} 点，不足 {n_insuff}，'
               f'可靠 {n_reli}，跨线 {n_cross}')
         print(f'总耗时           : {time.perf_counter() - t_total0:.1f}s')
+        if strict_a_audit_required:
+            print('统一口径提醒：当前候选的 N_B=0，最终数量须以 '
+                  'Q4/run_unified_a_audit.py 的Q3严格实体复核为准。')
 
         # result.csv
         with open(CSV_RESULT, 'w', newline='', encoding='utf-8') as f:
