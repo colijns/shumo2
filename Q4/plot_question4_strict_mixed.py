@@ -113,7 +113,6 @@ def main():
     ax.set_xlabel('导通概率（共同随机数 $M=4000$ 严格复核）')
     ax.set_yticks([])
     ax.set_ylim(-1.4, len(rows) + 0.4)
-    ax.set_title('问题4：含 B 临界候选的实体内接/外切夹逼复核')
     ax.legend(loc='lower right', fontsize=8.5, ncol=2)
     ax.grid(axis='x', alpha=0.25)
     fig.text(0.01, 0.01,

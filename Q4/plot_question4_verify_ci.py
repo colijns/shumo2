@@ -86,7 +86,6 @@ def main():
     ax.set_xlabel('导通概率（独立种子 $M=4000$ 复算）')
     ax.set_yticks([])
     ax.set_ylim(-0.6, len(rows) - 0.4)
-    ax.set_title('问题4：独立种子复算候选的导通概率与 95% Wilson 区间')
     ax.legend(loc='upper left', fontsize=9)
     ax.grid(axis='x', alpha=0.25)
     fig.tight_layout()
