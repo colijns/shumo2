@@ -119,14 +119,20 @@ def plot_cost_probability():
     c_star = float(res['C_star_元'])
 
     fig, ax = plt.subplots(figsize=(9.2, 6.0))
-    # 背景：全部搜索评估点（M=100 点估计），低成本段大团灰点 = 介质 B 无效区
-    ax.scatter(cost, p, s=6, c='#A0A0A0', alpha=0.22, linewidths=0,
-               label='搜索评估点（$M=100$ 点估计）')
-    # 前景：p̂ ≥ 0.85 的候选，颜色按 N_B（0=纯A，高值=多B）
+    # 背景：搜索评估点抽样显示（全部点重叠严重，固定 seed 抽 200 个保趋势）
+    rng = np.random.default_rng(42)
+    g = rng.choice(len(cost), size=min(200, len(cost)), replace=False)
+    ax.scatter(cost[g], p[g], s=6, c='#A0A0A0', alpha=0.32, linewidths=0,
+               label='搜索评估点（$M=100$ 点估计，抽样显示）')
+    # 前景：p̂ ≥ 0.85 的候选（240 个重叠严重，抽样 60 个保斜带趋势），
+    # 颜色按 N_B（0=纯A，高值=多B）
     m = p >= 0.85
-    sc = ax.scatter(cost[m], p[m], s=26, c=nb[m], cmap='viridis', vmin=0,
-                    vmax=62, linewidths=0.4, edgecolors='#333333',
-                    label='$\\hat P\\geq0.85$ 候选（颜色=$N_B$）')
+    cand = np.where(m)[0]
+    cidx = rng.choice(cand, size=min(60, len(cand)), replace=False)
+    cidx.sort()
+    sc = ax.scatter(cost[cidx], p[cidx], s=26, c=nb[cidx], cmap='viridis',
+                    vmin=0, vmax=62, linewidths=0.4, edgecolors='#333333',
+                    label='$\\hat P\\geq0.85$ 候选（抽样显示，颜色=$N_B$）')
     cb = fig.colorbar(sc, ax=ax, label='介质B 数量 $N_B$（个）')
     # 独立种子复算关键候选（verify.csv）：星=可靠可行，叉=跨线
     drawn = set()
