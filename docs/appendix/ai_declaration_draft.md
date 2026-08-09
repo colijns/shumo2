@@ -31,11 +31,11 @@
 
 #### 问题2 已完成配图（2026-08-09 正式版更新）
 - 图 4：介质A体积分数与导通概率（Q2/plot_question2.py，png 300 dpi + pdf 矢量双格式，已入池 docs/appendix/figures/）
-- AI 辅助：内接/外切双线 errorbar + fill_between 夹逼带绘图框架（Wilson CI 误差棒、N_A 标注、中文字体样式）；人工负责：确认正式数据源取值（solid_boundary_comparison.json，p̂=0.0720/0.2220~0.2230/0.4820~0.4835/0.9950）、夹逼带上下界与 JSON 一致、核对读图结论。
+- AI 辅助：内接/外切双线 errorbar + fill_between 夹逼带绘图框架（Wilson CI 误差棒、N_A 标注、中文字体样式；内外差仅 0.0010/0.0015，横轴错位 ±0.25 pp 区分重合曲线）；人工负责：确认正式数据源取值（solid_boundary_comparison.json，p̂=0.0720/0.2220~0.2230/0.4820~0.4835/0.9950）、夹逼带上下界与 JSON 一致、核对读图结论。
 - 图 7：随机微构体实体几何统计量随体积分数变化（Q2/plot_question2_statistics.py，png + pdf 双格式，已入池）
-- AI 辅助：内/外接片段与跨壁 4 线统计图（实线实心/虚线空心区分）+ 上轴 N_A 刻度；人工负责：确认统计量取值与 JSON 一致、删除旧接触边线。
+- AI 辅助：片段与跨壁 2 线统计图（外切与内接重合不另画）+ 上轴 N_A 刻度；人工负责：确认统计量取值与 JSON 一致、删除旧接触边线、确认外切重合可省略。
 - 图 8：跨壁圆柱比例诊断（Q2/plot_question2_crossing_ratio.py，png + pdf 双格式，已入池）
-- AI 辅助：实测柱 + 理论虚线柱状图框架；人工负责：确认比例按 Σ(mean_crossing×m)/Σ(n_A×m) 实算、理论率取 sensitivity 文件、核对读图结论。
+- AI 辅助：实体实测柱 + 理论虚线柱状图框架；人工负责：确认比例按 Σ(mean_crossing×m)/Σ(n_A×m) 实算、理论率取 sensitivity 文件、口径统一后移除轴线对照内容、核对读图结论。
 
 #### 问题3 已完成配图（2026-08-08）
 - 图 5：导通概率随介质数量变化与 90% 临界数量（Q3/plot_question3.py，png + pdf 双格式，已入池 docs/appendix/figures/）

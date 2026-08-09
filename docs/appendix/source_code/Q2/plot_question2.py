@@ -67,10 +67,14 @@ def main():
     fig, ax = plt.subplots(figsize=(7, 4.6))
     ax.fill_between(phis * 100, inner_p, outer_p, color='gray', alpha=0.25,
                     label='内外接夹逼区间')
-    ax.errorbar(phis * 100, inner_p, yerr=[inner_p - inner_lo, inner_hi - inner_p],
+    # 内外接在 0.60%/0.70% 处仅差 0.0010/0.0015，曲线近重合，
+    # 横轴错位 ±0.25 pp（灰色带仍按真实位置绘制）便于区分两条线
+    x_inner = phis * 100 - 0.25
+    x_outer = phis * 100 + 0.25
+    ax.errorbar(x_inner, inner_p, yerr=[inner_p - inner_lo, inner_hi - inner_p],
                 fmt='o-', color='#1f77b4', capsize=4, linewidth=1.8,
                 markersize=6, label='内接正多棱柱（导通概率下界）')
-    ax.errorbar(phis * 100, outer_p, yerr=[outer_p - outer_lo, outer_hi - outer_p],
+    ax.errorbar(x_outer, outer_p, yerr=[outer_p - outer_lo, outer_hi - outer_p],
                 fmt='s-', color='#ff7f0e', capsize=4, linewidth=1.8,
                 markersize=6, label='外切正多棱柱（导通概率上界）')
     ax.set_xlabel('体积分数 φ（%）')
@@ -78,7 +82,7 @@ def main():
     ax.set_xlim(0.45, 1.05)
     ax.set_ylim(-0.02, 1.05)
     ax.grid(True, linestyle='--', alpha=0.5)
-    for x, y, n in zip(phis * 100, outer_p, n_a):
+    for x, y, n in zip(x_outer, outer_p, n_a):
         ax.annotate(f'N$_A$={n}', (x, y), textcoords='offset points',
                     xytext=(0, 10), fontsize=9, ha='center')
     ax.legend(loc='upper left')
