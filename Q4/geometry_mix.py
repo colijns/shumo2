@@ -41,7 +41,7 @@ from first_passage import crossing_count as crossing_count_cylinders  # noqa: E4
 try:
     from scipy.spatial import cKDTree
     _HAS_SCIPY = True
-except Exception:  # noqa: BLE001  （scipy 不可用时走 numpy 矩阵兜底）
+except Exception:  # noqa: BLE001  （scipy 不可用时走空间网格兜底）
     cKDTree = None
     _HAS_SCIPY = False
 
@@ -65,28 +65,61 @@ THRESH_AB = R_A + R_B + DELTA  # 231.8：球心到轴线段的安全候选阈值
 THRESH_BB = 2.0 * R_B + DELTA  # 401.8：球心距初筛阈值（B-B 表面距 ≤ δ 等价）
 TOL_CONTACT = 1e-6             # 建边浮点容差
 
+def _bb_pairs_grid(coords, thresh):
+    """空间网格精确查询距离不超过 ``thresh`` 的球心对。
+
+    网格边长取实际判定半径。若两点欧氏距离不超过该半径，则任一坐标的
+    网格编号至多相差 1，因此只需检查本格及相邻 26 格。该实现不构造
+    n×n 矩阵，内存随点数和实际邻接边数近似线性增长。
+    """
+    n = len(coords)
+    if n < 2 or thresh < 0.0:
+        return np.empty((0, 2), dtype=np.int64)
+
+    radius = float(thresh) + TOL_CONTACT
+    if radius <= 0.0:
+        # 仅保留完全重合的不同点；采用正数机器精度作为网格尺度。
+        cell_size = np.finfo(float).eps
+    else:
+        cell_size = radius
+    cell_ids = np.floor(coords / cell_size).astype(np.int64)
+    cells = {}
+    for index, cell in enumerate(cell_ids):
+        cells.setdefault(tuple(cell), []).append(index)
+
+    offsets = tuple(product((-1, 0, 1), repeat=3))
+    radius_sq = radius * radius
+    pairs = []
+    for i, (point, cell) in enumerate(zip(coords, cell_ids)):
+        cell_tuple = tuple(cell)
+        for offset in offsets:
+            neighbour = (cell_tuple[0] + offset[0],
+                         cell_tuple[1] + offset[1],
+                         cell_tuple[2] + offset[2])
+            for j in cells.get(neighbour, ()):
+                if j <= i:
+                    continue
+                difference = point - coords[j]
+                if float(np.dot(difference, difference)) <= radius_sq:
+                    pairs.append((i, j))
+    if not pairs:
+        return np.empty((0, 2), dtype=np.int64)
+    # 外层 i 递增，但相邻格遍历顺序不保证 j 有序；统一排序便于复现与测试。
+    pairs.sort()
+    return np.asarray(pairs, dtype=np.int64)
+
+
 def bb_pairs(coords, thresh=THRESH_BB):
-    """球心候选对（距离 ≤ thresh，i<j）。scipy cKDTree 优先，numpy 矩阵兜底。"""
+    """球心接触对（距离 ≤ thresh，i<j），内存复杂度近似 O(n+k)。"""
     coords = np.asarray(coords, dtype=float)
     n = len(coords)
     if n < 2:
         return np.empty((0, 2), dtype=np.int64)
     if _HAS_SCIPY:
-        pairs = cKDTree(coords).query_pairs(thresh, output_type='ndarray')
+        pairs = cKDTree(coords).query_pairs(
+            float(thresh) + TOL_CONTACT, output_type='ndarray')
         return np.asarray(pairs, dtype=np.int64).reshape(-1, 2)
-    lo = coords - thresh
-    hi = coords + thresh
-    ok = np.ones((n, n), dtype=bool)
-    for a in range(3):
-        ok &= (lo[:, None, a] - hi[None, :, a] <= 0.0)
-        ok &= (lo[None, :, a] - hi[:, None, a] <= 0.0)
-    ok &= np.triu(np.ones((n, n), dtype=bool), 1)
-    ii, jj = np.nonzero(ok)
-    if len(ii) == 0:
-        return np.empty((0, 2), dtype=np.int64)
-    d = np.linalg.norm(coords[ii] - coords[jj], axis=1)
-    m = d <= thresh + TOL_CONTACT
-    return np.stack([ii[m], jj[m]], axis=1)
+    return _bb_pairs_grid(coords, float(thresh))
 
 
 def generate_balls(n, rng):

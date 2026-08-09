@@ -109,6 +109,30 @@ class TestDistances(unittest.TestCase):
         pairs = gm.bb_pairs(np.array([[0.0, 0.0, 0.0], [402.0, 0.0, 0.0]]))
         self.assertEqual(len(pairs), 0)
 
+    def test_bb_grid_matches_bruteforce_random(self):
+        """空间网格必须与小样本全量欧氏距离判定逐对一致。"""
+        rng = np.random.default_rng(20260809)
+        coords = rng.uniform(-1200.0, 1200.0, size=(240, 3))
+        threshold = 317.25
+        got = set(map(tuple, gm._bb_pairs_grid(coords, threshold).tolist()))
+        delta = coords[:, None, :] - coords[None, :, :]
+        distance_sq = np.einsum('ijk,ijk->ij', delta, delta)
+        ii, jj = np.nonzero(np.triu(
+            distance_sq <= (threshold + gm.TOL_CONTACT) ** 2, 1))
+        expected = set(zip(ii.tolist(), jj.tolist()))
+        self.assertEqual(got, expected)
+
+    def test_bb_grid_across_cell_boundary(self):
+        """跨相邻网格边界的近邻不能被漏掉。"""
+        threshold = 10.0
+        coords = np.array([
+            [9.999999, 0.0, 0.0],
+            [10.000001, 0.0, 0.0],
+            [30.1, 0.0, 0.0],
+        ])
+        pairs = set(map(tuple, gm._bb_pairs_grid(coords, threshold).tolist()))
+        self.assertEqual(pairs, {(0, 1)})
+
     def test_ab_distance_threshold(self):
         # 圆柱轴段 x 向 (0,0,0)-(5000,0,0)；球心正上方 431.8 = r_A+r_B+δ → 接触
         p1s = np.array([[0.0, 0.0, 0.0]])
