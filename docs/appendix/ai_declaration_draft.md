@@ -29,11 +29,13 @@
 - 结果复现：三组接触边 2/27/165、见证路径 组1 无 / S-A2-A12-A24-A39-T / S-A63-A264-A216-A351-T、组1 不导通、组2/组3 导通；与规格文档 docs/问题1.md 第 11/13 节逐项一致。
 - 验证：41 项单元/集成测试全过（含组1 穷举 1782 个"介质对—镜像"组合与加速管线对照）；结果存 Q1/results/question1_result.json。
 
-#### 问题2 已完成配图（2026-08-08，附图 2026-08-09）
+#### 问题2 已完成配图（2026-08-09 正式版更新）
 - 图 4：介质A体积分数与导通概率（Q2/plot_question2.py，png 300 dpi + pdf 矢量双格式，已入池 docs/appendix/figures/）
-- AI 辅助：折线+误差棒绘图框架（Wilson CI 误差棒、N_A 标注、中文字体样式）；人工负责：确认体积分数横轴单位、CI 上下界与 CSV 数据一致、核对读图结论。
-- 图 7：随机微构体几何统计量随体积分数变化（Q2/plot_question2_statistics.py，png + pdf 双格式，已入池）
-- AI 辅助：三线统计图 + 上轴 N_A 刻度；人工负责：确认统计量取值与 JSON 一致。
+- AI 辅助：内接/外切双线 errorbar + fill_between 夹逼带绘图框架（Wilson CI 误差棒、N_A 标注、中文字体样式）；人工负责：确认正式数据源取值（solid_boundary_comparison.json，p̂=0.0720/0.2220~0.2230/0.4820~0.4835/0.9950）、夹逼带上下界与 JSON 一致、核对读图结论。
+- 图 7：随机微构体实体几何统计量随体积分数变化（Q2/plot_question2_statistics.py，png + pdf 双格式，已入池）
+- AI 辅助：内/外接片段与跨壁 4 线统计图（实线实心/虚线空心区分）+ 上轴 N_A 刻度；人工负责：确认统计量取值与 JSON 一致、删除旧接触边线。
+- 图 8：跨壁圆柱比例诊断（Q2/plot_question2_crossing_ratio.py，png + pdf 双格式，已入池）
+- AI 辅助：实测柱 + 理论虚线柱状图框架；人工负责：确认比例按 Σ(mean_crossing×m)/Σ(n_A×m) 实算、理论率取 sensitivity 文件、核对读图结论。
 
 #### 问题3 已完成配图（2026-08-08）
 - 图 5：导通概率随介质数量变化与 90% 临界数量（Q3/plot_question3.py，png + pdf 双格式，已入池 docs/appendix/figures/）

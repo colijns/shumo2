@@ -4,3 +4,6 @@
 
 | 时间 | 文件 | 改动摘要 | 修改原因 |
 |------|------|----------|----------|
+| 2026-08-09 | Q2/plot_question2.py | 图4 重绘：数据源 question2_result.csv 换 solid_boundary_comparison.json，单线改内接/外切双线夹逼带 + fill_between，删内嵌标题 | 正式结果（8000 共同样本，K=64）口径同步 |
+| 2026-08-09 | Q2/plot_question2_statistics.py | 图7 重绘：数据源换 solid_boundary_comparison.json，删接触边线，改内/外接片段与跨壁 4 线 | 正式结果口径同步 |
+| 2026-08-09 | Q2/plot_question2_crossing_ratio.py | 图8 新增：跨壁比例诊断柱状图（实测柱 + 理论虚线） | 正式报告 §4.5 跨壁比例诊断配图 |
