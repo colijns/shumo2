@@ -21,7 +21,9 @@
 2. 问题2 主计算（蒙特卡洛，4 φ 并行）：cd Q2 && python run_question2.py
    （输出：results/question2_result.csv + 终端表；全量约 14min，各 φ M=2000）
 3. 全部测试：cd Q1 && python -m unittest discover -s tests -v；cd Q2 && python -m pytest tests -q
-4. 出图：cd Q1 && python plot_question1.py；cd Q2 && python plot_question2.py
+4. 出图：cd Q1 && python plot_question1.py；cd Q2 && python plot_question2.py；
+   cd Q2 && python plot_question2_statistics.py（图7 几何统计量、图8 跨壁率验证）；
+   cd Q2 && python plot_question2_schematic.py（图9 接触网络机理示意）
    （输出各题 figures/ png 300dpi + pdf；论文用图见 docs/appendix/figures/）
 5. 附件读取按工作表索引 0/1/2（表名 GBK 乱码，勿按名字读）
 
@@ -42,5 +44,7 @@ Q2/geometry.py                              问题2 几何核心：随机生成�
 Q2/monte_carlo.py                           每体积分数蒙特卡洛循环 + Wilson 95% CI
 Q2/run_question2.py                         4 体积分数并行入口（ProcessPoolExecutor，seed=42+i）
 Q2/plot_question2.py                        导通概率 vs 体积分数配图（AI 辅助注释头，png+pdf 双格式）
+Q2/plot_question2_statistics.py             图7 几何统计量、图8 跨壁率验证配图（AI 辅助注释头）
+Q2/plot_question2_schematic.py              图9 接触网络机理示意配图（AI 辅助注释头）
 Q2/tests/test_clip.py / test_distance.py / test_monte_carlo.py  问题2 单元测试（32 断言）
 Q2/results/question2_result.csv             4 体积分数导通概率、Wilson CI、平均片段/接触边统计
