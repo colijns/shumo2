@@ -207,7 +207,8 @@ def main():
         fig = plt.figure(figsize=(14.5, 6.8))
         ax3d = fig.add_subplot(1, 2, 1, projection='3d')
         ax2d = fig.add_subplot(1, 2, 2)
-        fig.subplots_adjust(wspace=0.22, bottom=0.14, top=0.86)
+        # 图内不设总标题（组级信息放论文图注），仅保留 (a)(b) 面板标注
+        fig.subplots_adjust(wspace=0.22, bottom=0.14, top=0.92)
 
         draw_cube_and_electrodes(ax3d)
 
@@ -254,10 +255,6 @@ def main():
         ax2d.set_title('(b) 接触网络 2D 投影（x–z 平面）', fontsize=11)
 
         state = '导通' if group['conductive'] else '不导通'
-        path_txt = '（' + '—'.join(group['witness_path']) + '）' \
-            if group['witness_path'] else ''
-        fig.suptitle(f"{group['name']} 微构体接触网络与导电路径：{state} {path_txt}",
-                     fontsize=13, y=0.98)
 
         # 图例（底部通栏）：无见证路径时（不导通组）不显示路径相关项
         legend_items = []
