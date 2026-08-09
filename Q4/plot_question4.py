@@ -107,8 +107,8 @@ def plot_cost_probability():
     """图1：成本-导通概率散点图（搜索点 + 高概率前景 + 独立复算关键候选标注）。
 
     横轴为总成本 C = c_A·N_A + c_B·N_B，纵轴为导通概率点估计；全部搜索评估点
-    作灰色背景，x 轴放大至有效候选集中区 8.3~9.65 元（低成本段 90% 点概率
-    极低、无可读信息，裁掉以放大高概率区），p̂≥0.85 的候选按 N_B 着色，
+    作灰色背景，双轴收窄至候选集中区（x 8.88~9.42 元、y 0.70~1.02，低成本
+    低概率点无可读信息、裁掉以放大高概率区），p̂≥0.85 的候选按 N_B 着色，
     叠加独立种子复算的关键候选（星=可靠 / 叉=跨线）。
     """
     na, nb, p = load_points(CSV_POINTS)
@@ -149,21 +149,22 @@ def plot_cost_probability():
     # 关键候选文字标注（白底框压灰点，窗口内重摆）
     bbox_kw = dict(boxstyle='round,pad=0.25', fc='white', ec='none', alpha=0.9)
     ax.annotate('搜索定位 $(598,62)$：\n8.981 元，$M=100$ 点估计 0.90，不可靠',
-                xy=(c_a * 598 + c_b * 62, 0.90), xytext=(8.35, 0.86),
+                xy=(c_a * 598 + c_b * 62, 0.90), xytext=(8.90, 0.98),
                 fontsize=8.5, color='#333333', bbox=bbox_kw,
                 arrowprops=dict(arrowstyle='->', color='#333333', lw=0.9))
     ax.annotate('$(608,14)$ 9.049 元：\n独立复算跨线',
-                xy=(c_a * 608 + c_b * 14, 0.8925), xytext=(8.38, 0.62),
+                xy=(c_a * 608 + c_b * 14, 0.8925), xytext=(8.90, 0.76),
                 fontsize=8.5, color='#4C72B0', bbox=bbox_kw,
                 arrowprops=dict(arrowstyle='->', color='#4C72B0', lw=0.9))
     ax.annotate(f'独立复算可靠 $({na_star},{nb_star})$ {c_star:.4f} 元',
-                xy=(c_star, 0.91075), xytext=(c_star - 0.10, 0.99),
+                xy=(c_star, 0.91075), xytext=(c_star + 0.06, 0.99),
                 fontsize=8.5, color='#2e7d32', bbox=bbox_kw,
                 arrowprops=dict(arrowstyle='->', color='#2e7d32', lw=0.9))
     ax.set_xlabel('总成本 $C=c_A N_A+c_B N_B$（元）')
     ax.set_ylabel('导通概率点估计 $\\hat P$')
-    ax.set_xlim(8.3, 9.65)  # 有效候选集中在 8.5~9.5 元，放大该窗口
-    ax.set_ylim(0.0, 1.02)
+    # 二次放大：候选实际集中于 x 8.93~9.16、y 0.85~0.96，双轴收窄
+    ax.set_xlim(8.88, 9.42)
+    ax.set_ylim(0.70, 1.02)
     ax.legend(loc='lower right', fontsize=8.5, framealpha=0.95)
     ax.grid(alpha=0.25)
     fig.tight_layout()
