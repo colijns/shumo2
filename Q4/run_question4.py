@@ -716,6 +716,8 @@ def main():
             'strict_A_audit_required': strict_a_audit_required,
             'strict_A_audit_command': ('python Q4/run_unified_a_audit.py'
                                        if strict_a_audit_required else ''),
+            'strict_mixed_audit_command':
+                'python Q4/run_strict_mixed_audit.py',
             'N_A_hat90': n_a_hat, 'N_A_safe': n_a_safe, '纯A成本_元': cost_a,
             'N_B_hat90': n_b_hat, 'N_B_safe': n_b_safe,
             '纯B成本_元': cost_b if cost_b is not None else '不可行',
@@ -768,6 +770,8 @@ def main():
         if strict_a_audit_required:
             print('统一口径提醒：当前候选的 N_B=0，最终数量须以 '
                   'Q4/run_unified_a_audit.py 的Q3严格实体复核为准。')
+        print('严格混合复核：低成本临界候选请运行 '
+              'Q4/run_strict_mixed_audit.py。')
 
         # result.csv
         with open(CSV_RESULT, 'w', newline='', encoding='utf-8') as f:
