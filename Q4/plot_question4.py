@@ -205,42 +205,69 @@ def plot_cost_probability():
 
 
 def plot_boundary():
-    """图2：最低可行层边界曲线，Wilson 判定着色。"""
+    """图2：主种子验证带边界图——每 N_A 的 N_B 需求带 + 下包络 + 跨线/可靠点。
+
+    原图为 3048 个点逐点散点（其中 3040 个 insufficient 全红，无法读出
+    边界结构）；重设计为：x=N_A（0~617）、y=N_B（0~5500），每 N_A 的
+    1~5 个验证点合成为 min~max 竖带（验证带，宽度约 56 个 B），叠加
+    下包络线（该 N_A 最低验证点，仍不足 0.90），跨线 7 点蓝叉、可靠
+    (617,0) 绿星，标注关键段。叙事：B 需求随 N_A 单调下降，608 段后
+    进入小 B 区出现跨线，617 纯 A 可靠。
+    """
     rows = load_boundary(CSV_BOUNDARY)
     res = load_result(CSV_RESULT)
     na_star, nb_star = int(res['N_A_star']), int(res['N_B_star'])
+    c_star = float(res['C_star_元'])
 
-    fig, ax = plt.subplots(figsize=(8.4, 5.6))
-    color = {'reliable': '#55A868', 'insufficient': '#C44E52',
-             'crossing': '#4C72B0'}
-    label = {'reliable': '可靠可行（CI 下界 ≥ 0.90）',
-             'insufficient': '不足（CI 上界 < 0.90）',
-             'crossing': '跨线（区间含 0.90）'}
-    drawn = set()
+    per = defaultdict(list)
     for r in rows:
-        c = color.get(r['v'], '#888888')
-        l = label.get(r['v'])
-        if l in drawn:
-            l = None
-        elif l:
-            drawn.add(l)
-        ax.scatter([r['na']], [r['nb']], s=22, c=c, label=l,
-                   alpha=0.85, linewidths=0)
-    # 边界曲线连接（按 na 升序）
-    rsort = sorted(rows, key=lambda r: r['na'])
-    if len(rsort) > 1:
-        ax.plot([r['na'] for r in rsort], [r['nb'] for r in rsort],
-                color='#888888', lw=0.8, ls=':', zorder=0)
-    ax.plot([na_star], [nb_star], marker='*', ms=15, mfc='#FFD700',
-            mec='#111111', mew=1.2, ls='none',
-            label=f"最优 $({na_star},{nb_star})$")
+        per[r['na']].append((r['nb'], r['v']))
+    nas = sorted(per)
+    lo = [min(x[0] for x in per[k]) for k in nas]
+    hi = [max(x[0] for x in per[k]) for k in nas]
+
+    fig, ax = plt.subplots(figsize=(9.2, 5.6))
+    # 验证带：每 N_A 的 N_B 搜索范围（min~max）
+    ax.fill_between(nas, lo, hi, color='#C8C8C8', alpha=0.55,
+                    label='主种子验证带（该 $N_A$ 的 $N_B$ 需求区间，宽约 56 个）')
+    # 下包络：各 N_A 最低验证点连线（仍不足 0.90）
+    ax.plot(nas, lo, color='#C44E52', lw=1.8,
+            label='最低验证点下包络（CI 上界 $<0.90$，仍不足）')
+    # 跨线 7 点（区间含 0.90）与可靠 (617,0)
+    cross = [(r['na'], r['nb']) for r in rows if r['v'] == 'crossing']
+    if cross:
+        ax.scatter([c[0] for c in cross], [c[1] for c in cross], marker='x',
+                   s=60, c='#4C72B0', linewidths=1.6, zorder=4,
+                   label='跨线（95% CI 含 0.90，$N_A\\geq608$ 小 B 段）')
+    ax.scatter([na_star], [nb_star], marker='*', s=200, c='#55A868',
+               edgecolors='#111111', linewidths=0.9, zorder=5,
+               label=f'可靠 $(617,0)$，{c_star:.4f} 元')
+    # 关键段标注
+    ax.annotate('$N_A=0$：需 $5360\\sim5416$ 个 B\n（纯 B 端点，概率仍不足）',
+                xy=(0, 5360), xytext=(20, 4700), fontsize=8.5,
+                color='#333333', bbox=dict(boxstyle='round,pad=0.25',
+                fc='white', ec='none', alpha=0.9),
+                arrowprops=dict(arrowstyle='->', color='#333333', lw=0.9))
+    ax.annotate('$N_A=600$：仅需 $45\\sim101$ 个 B\n（每根 A 替代约 90 个 B）',
+                xy=(600, 45), xytext=(430, 420), fontsize=8.5,
+                color='#333333', bbox=dict(boxstyle='round,pad=0.25',
+                fc='white', ec='none', alpha=0.9),
+                arrowprops=dict(arrowstyle='->', color='#333333', lw=0.9))
+    ax.annotate('跨线段：$N_A=608\\sim611$，$N_B\\leq21$\n'
+                '（验证带与 0.90 相交，不可认证）',
+                xy=(609, 12), xytext=(500, 1800), fontsize=8.5,
+                color='#4C72B0', bbox=dict(boxstyle='round,pad=0.25',
+                fc='white', ec='none', alpha=0.9),
+                arrowprops=dict(arrowstyle='->', color='#4C72B0', lw=0.9))
     ax.set_xlabel('介质A 数量 $N_A$（根）')
     ax.set_ylabel('介质B 数量 $N_B$（个）')
-    ax.legend(loc='upper right', fontsize=8)
+    ax.set_xlim(-15, 640)
+    ax.set_ylim(-60, 5750)
+    ax.legend(loc='upper right', fontsize=8.5, framealpha=0.95)
     ax.grid(alpha=0.25)
     fig.tight_layout()
     save_pair(fig, '问题4_可行边界验证')
-    print(f'图2 边界：{len(rows)} 点')
+    print(f'图2 验证带：{len(rows)} 点，{len(per)} 个 N_A')
 
 
 def main():
