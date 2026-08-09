@@ -21,6 +21,7 @@ import os
 import shutil
 import sys
 import tempfile
+from collections import defaultdict
 
 os.environ.setdefault(
     'MPLCONFIGDIR', os.path.join(tempfile.gettempdir(), 'shumo2-matplotlib'))
@@ -106,10 +107,11 @@ def load_boundary(path):
 def plot_cost_probability():
     """图1：成本-导通概率散点图（搜索点 + 高概率前景 + 独立复算关键候选标注）。
 
-    横轴为总成本 C = c_A·N_A + c_B·N_B，纵轴为导通概率点估计；全部搜索评估点
-    作灰色背景，双轴收窄至候选集中区（x 8.88~9.42 元、y 0.70~1.02，低成本
-    低概率点无可读信息、裁掉以放大高概率区），p̂≥0.85 的候选按 N_B 着色，
-    叠加独立种子复算的关键候选（星=可靠 / 叉=跨线）。
+    横轴为总成本 C = c_A·N_A + c_B·N_B，纵轴为导通概率点估计；双轴收窄至
+    候选集中区（x 8.88~9.42 元、y 0.70~1.02）。密集点均聚为代表：搜索评估点
+    hexbin 密度格，p̂≥0.85 的 240 个候选按 N_A 聚为 54 个候选簇（点大小=簇内
+    组合数、颜色=簇内最小 N_B），叠加独立种子复算的关键候选（星=可靠 /
+    叉=跨线）。
     """
     na, nb, p = load_points(CSV_POINTS)
     res = load_result(CSV_RESULT)
@@ -119,21 +121,30 @@ def plot_cost_probability():
     c_star = float(res['C_star_元'])
 
     fig, ax = plt.subplots(figsize=(9.2, 6.0))
-    # 背景：搜索评估点抽样显示（全部点重叠严重，固定 seed 抽 200 个保趋势）
-    rng = np.random.default_rng(42)
-    g = rng.choice(len(cost), size=min(200, len(cost)), replace=False)
-    ax.scatter(cost[g], p[g], s=6, c='#A0A0A0', alpha=0.32, linewidths=0,
-               label='搜索评估点（$M=100$ 点估计，抽样显示）')
-    # 前景：p̂ ≥ 0.85 的候选（240 个重叠严重，抽样 60 个保斜带趋势），
-    # 颜色按 N_B（0=纯A，高值=多B）
-    m = p >= 0.85
-    cand = np.where(m)[0]
-    cidx = rng.choice(cand, size=min(60, len(cand)), replace=False)
-    cidx.sort()
-    sc = ax.scatter(cost[cidx], p[cidx], s=26, c=nb[cidx], cmap='viridis',
+    # 背景：搜索评估点 hexbin 密度格（窗口内 ~1000 点聚为格子，每格一个代表）
+    mask = (cost >= 8.88) & (cost <= 9.42) & (p >= 0.70) & (p <= 1.02)
+    ax.hexbin(cost[mask], p[mask], gridsize=(27, 16), cmap='Greys',
+              mincnt=1, linewidths=0, alpha=0.7)
+    ax.scatter([], [], s=1, c='#A0A0A0',
+               label='搜索评估点密度（hexbin 聚合，$M=100$ 点估计）')
+    # 前景：p̂ ≥ 0.85 的候选按 N_A 聚簇——同 N_A 的达标组合合并为一个代表点：
+    # x=簇内最小成本、y=簇内最大 p̂、颜色=簇内最小 N_B、点大小=簇内组合数
+    groups = defaultdict(list)
+    for na_i, nb_i, p_i in zip(na, nb, p):
+        if p_i >= 0.85:
+            groups[na_i].append((nb_i, p_i, c_a * na_i + c_b * nb_i))
+    gx, gy, gc, gs = [], [], [], []
+    for na_k in sorted(groups):
+        g = groups[na_k]
+        gx.append(min(x[2] for x in g))
+        gy.append(max(x[1] for x in g))
+        gc.append(min(x[0] for x in g))
+        gs.append(len(g))
+    sc = ax.scatter(gx, gy, s=[16 + 7 * c for c in gs], c=gc, cmap='viridis',
                     vmin=0, vmax=62, linewidths=0.4, edgecolors='#333333',
-                    label='$\\hat P\\geq0.85$ 候选（抽样显示，颜色=$N_B$）')
-    cb = fig.colorbar(sc, ax=ax, label='介质B 数量 $N_B$（个）')
+                    label='$\\hat P\\geq0.85$ 候选簇（同 $N_A$ 聚合，'
+                          '点大小=簇内组合数）')
+    cb = fig.colorbar(sc, ax=ax, label='簇内最小介质B 数量 $N_B$（个）')
     # 独立种子复算关键候选（verify.csv）：星=可靠可行，叉=跨线
     drawn = set()
     for r in load_verify(CSV_VERIFY):
