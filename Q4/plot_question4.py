@@ -208,11 +208,11 @@ def plot_boundary():
     """图2：主种子验证带边界图——每 N_A 的 N_B 需求带 + 下包络 + 跨线/可靠点。
 
     原图为 3048 个点逐点散点（其中 3040 个 insufficient 全红，无法读出
-    边界结构）；重设计为：x=N_A（0~617）、y=N_B（0~5500），每 N_A 的
-    1~5 个验证点合成为 min~max 竖带（验证带，宽度约 56 个 B），叠加
-    下包络线（该 N_A 最低验证点，仍不足 0.90），跨线 7 点蓝叉、可靠
-    (617,0) 绿星，标注关键段。叙事：B 需求随 N_A 单调下降，608 段后
-    进入小 B 区出现跨线，617 纯 A 可靠。
+    边界结构）；重设计为：每 N_A 的 1~5 个验证点合成 min~max 验证带，
+    窗口放大至跨线/可靠集中区（x=N_A 596~624、y=N_B 0~120，全带形态
+    由图 1 与正文统计承载），跨线 7 点蓝叉、可靠 (617,0) 绿星，标注
+    跨线段与可靠点。叙事：608 段后进入小 B 区验证带与 0.90 相交不可
+    认证，617 纯 A 可靠。
     """
     rows = load_boundary(CSV_BOUNDARY)
     res = load_result(CSV_RESULT)
@@ -242,27 +242,22 @@ def plot_boundary():
     ax.scatter([na_star], [nb_star], marker='*', s=200, c='#55A868',
                edgecolors='#111111', linewidths=0.9, zorder=5,
                label=f'可靠 $(617,0)$，{c_star:.4f} 元')
-    # 关键段标注
-    ax.annotate('$N_A=0$：需 $5360\\sim5416$ 个 B\n（纯 B 端点，概率仍不足）',
-                xy=(0, 5360), xytext=(20, 4700), fontsize=8.5,
-                color='#333333', bbox=dict(boxstyle='round,pad=0.25',
-                fc='white', ec='none', alpha=0.9),
-                arrowprops=dict(arrowstyle='->', color='#333333', lw=0.9))
-    ax.annotate('$N_A=600$：仅需 $45\\sim101$ 个 B\n（每根 A 替代约 90 个 B）',
-                xy=(600, 45), xytext=(430, 420), fontsize=8.5,
-                color='#333333', bbox=dict(boxstyle='round,pad=0.25',
-                fc='white', ec='none', alpha=0.9),
-                arrowprops=dict(arrowstyle='->', color='#333333', lw=0.9))
+    # 关键段标注（窗口放大至跨线/可靠区后重摆）
+    bbox_kw = dict(boxstyle='round,pad=0.25', fc='white', ec='none', alpha=0.9)
     ax.annotate('跨线段：$N_A=608\\sim611$，$N_B\\leq21$\n'
                 '（验证带与 0.90 相交，不可认证）',
-                xy=(609, 12), xytext=(500, 1800), fontsize=8.5,
-                color='#4C72B0', bbox=dict(boxstyle='round,pad=0.25',
-                fc='white', ec='none', alpha=0.9),
+                xy=(609, 12), xytext=(599, 88), fontsize=8.5,
+                color='#4C72B0', bbox=bbox_kw,
                 arrowprops=dict(arrowstyle='->', color='#4C72B0', lw=0.9))
+    ax.annotate(f'$(617,0)$ 可靠，{c_star:.4f} 元',
+                xy=(617, 0), xytext=(606, 52), fontsize=8.5,
+                color='#2e7d32', bbox=bbox_kw,
+                arrowprops=dict(arrowstyle='->', color='#2e7d32', lw=0.9))
     ax.set_xlabel('介质A 数量 $N_A$（根）')
     ax.set_ylabel('介质B 数量 $N_B$（个）')
-    ax.set_xlim(-15, 640)
-    ax.set_ylim(-60, 5750)
+    # 放大至跨线/可靠集中区（N_A 596~624、N_B 0~120）
+    ax.set_xlim(596, 624)
+    ax.set_ylim(-15, 120)
     ax.legend(loc='upper right', fontsize=8.5, framealpha=0.95)
     ax.grid(alpha=0.25)
     fig.tight_layout()
