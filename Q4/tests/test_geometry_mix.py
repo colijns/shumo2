@@ -56,29 +56,32 @@ class TestBalls(unittest.TestCase):
         moved = r['c_img'][1]
         np.testing.assert_allclose(moved, [-4910.0 + gm.L, 0.0, 0.0])
 
-    def test_clip_two_axis_cross_three(self):
-        # 双轴越界（角部）→ 3 片段，全落回扩张盒语义内
+    def test_clip_two_axis_cross_four(self):
+        # 双轴越界（角部）→ 本体、两个单轴镜像和一个双轴组合镜像
         cs = np.array([[-4910.0, -4910.0, 0.0]])
         r = gm.clip_balls(cs)
-        self.assertEqual(len(r['c_img']), 3)
-        self.assertEqual(sorted(r['ball_idx'].tolist()), [0, 0, 0])
+        self.assertEqual(len(r['c_img']), 4)
+        self.assertEqual(sorted(r['ball_idx'].tolist()), [0, 0, 0, 0])
+        self.assertTrue(any(np.allclose(
+            center, [-4910.0 + gm.L, -4910.0 + gm.L, 0.0])
+            for center in r['c_img']))
 
-    def test_clip_three_axis_cross_four(self):
+    def test_clip_three_axis_cross_eight(self):
         cs = np.array([[-4910.0, -4910.0, -4910.0]])
         r = gm.clip_balls(cs)
-        self.assertEqual(len(r['c_img']), 4)
+        self.assertEqual(len(r['c_img']), 8)
         # 完整球模型：平移片段球心可出盒，但每片段与盒相交（半径 200 部分进入）
         self.assertTrue(np.all(r['c_img'] - gm.R_B <= gm.HALF_L + 1e-9))
         self.assertTrue(np.all(r['c_img'] + gm.R_B >= -gm.HALF_L - 1e-9))
 
-    def test_clip_max_four(self):
-        # 2r_B=400 < L：同轴不可能双向越界，片段数 ≤ 4
+    def test_clip_max_eight(self):
+        # 2r_B=400 < L：每轴至多两个选择，三轴组合片段数 ≤ 8
         rng = np.random.default_rng(7)
         cs = gm.generate_balls(3000, rng)
         r = gm.clip_balls(cs)
         idx = r['ball_idx']
         counts = np.bincount(idx, minlength=len(cs))
-        self.assertTrue(np.all(counts <= 4))
+        self.assertTrue(np.all(counts <= 8))
         self.assertEqual(counts.sum(), len(r['c_img']))
 
 
@@ -88,6 +91,12 @@ class TestDistances(unittest.TestCase):
         dL, dR = gm.sphere_electrode_dist(np.array([[4500.0, 0.0, 0.0]]))
         self.assertAlmostEqual(dR[0], gm.HALF_L - 4500.0 - gm.R_B)   # 300
         self.assertAlmostEqual(dL[0], 4500.0 - gm.R_B + gm.HALF_L)   # 9300
+
+    def test_sphere_image_uses_finite_electrode_face(self):
+        # x 到左电极很近，但球心在 y 方向远离有限正方形，不能误接电极。
+        dL, _ = gm.sphere_electrode_dist(
+            np.array([[-5100.0, -5200.0, 0.0]]))
+        self.assertGreater(dL[0], 0.0)
         # 穿过电极面 → clamp 0
         dL, dR = gm.sphere_electrode_dist(np.array([[4900.0, 0.0, 0.0]]))
         self.assertEqual(dR[0], 0.0)
@@ -117,6 +126,21 @@ class TestDistances(unittest.TestCase):
         self.assertIn((0, 2), got)
         self.assertNotIn((0, 1), got)
 
+    def test_ab_diagonal_beyond_flat_end_is_rejected(self):
+        # 轴段从 x=0 开始。球心轴向越过端面 200、径向偏移 100：
+        # 到轴线段约223.6 < rA+rB+delta，胶囊会误连；
+        # 到平端圆柱实体约211.9 > rB+delta，应拒绝。
+        p1s = np.array([[0.0, 0.0, 0.0]])
+        p2s = np.array([[5000.0, 0.0, 0.0]])
+        a_lo = np.minimum(p1s, p2s) - gm.R_A
+        a_hi = np.maximum(p1s, p2s) + gm.R_A
+        ball = np.array([[-200.0, 100.0, 0.0]])
+        b_lo = ball - gm.R_B
+        b_hi = ball + gm.R_B
+        edges = gm._ab_edges_all(
+            p1s, p2s, a_lo, a_hi, ball, b_lo, b_hi)
+        self.assertEqual(len(edges), 0)
+
     def test_aa_gjk_threshold(self):
         # 两根平行 x 向圆柱，轴距 61.8 → 表面距离 1.8 = δ 接触；62 → 不接触
         p1s = np.array([[-2500.0, 0.0, 0.0], [-2500.0, 62.0, 0.0]])
@@ -133,6 +157,17 @@ class TestDistances(unittest.TestCase):
         hi = np.maximum(p1s, p2s) + gm.R_A
         edges = gm._aa_edges_all(p1s, p2s, lo, hi)
         self.assertEqual(len(edges), 1)
+
+    def test_aa_collinear_flat_end_gap_is_rejected(self):
+        # 胶囊轴距50 < 2r+delta 会误连；平端圆柱真实端面间距50。
+        p1s = np.array([[0.0, 0.0, 0.0],
+                        [150.0, 0.0, 0.0]])
+        p2s = np.array([[100.0, 0.0, 0.0],
+                        [250.0, 0.0, 0.0]])
+        lo = np.minimum(p1s, p2s) - gm.R_A
+        hi = np.maximum(p1s, p2s) + gm.R_A
+        edges = gm._aa_edges_all(p1s, p2s, lo, hi)
+        self.assertEqual(len(edges), 0)
 
 
 class TestCrossingRatio(unittest.TestCase):

@@ -564,6 +564,10 @@ def main():
         if best is None:
             raise SystemExit(f'最低可行层 C_min={c_min:.4f} 全扫无可行点，搜索失败')
         c_star, na_star, nb_star, x_star, m_star = best
+        # 搜索阶段点估计必须单独保存；后续 na_star 等会更新为主种子
+        # Wilson 可靠解，不能反向覆盖 CSV 中“点估计最优”的含义。
+        pe_cost, pe_na, pe_nb, pe_x, pe_m = (
+            c_star, na_star, nb_star, x_star, m_star)
         k_init = best_rel_search[0] if best_rel_search is not None else None
         print(f'搜索：二分 {n_fea} 次 fea，最低可行层 C_min={c_min:.4f} 元，'
               f'点估计最优 [PE] = ({na_star}, {nb_star}) 成本 {c_star:.4f} 元 '
@@ -718,9 +722,9 @@ def main():
             'wilson95_CI': (float(lo_fin), float(hi_fin)),
             '答案判定': v_fin, '答案种子': src,
             # 对照口径
-            '点估计最优_NA': na_star, '点估计最优_NB': nb_star,
-            '点估计最优_C_元': c_star, '点估计最优_p_hat': x_star / m_star,
-            '点估计最优_M': m_star,
+            '点估计最优_NA': pe_na, '点估计最优_NB': pe_nb,
+            '点估计最优_C_元': pe_cost, '点估计最优_p_hat': pe_x / pe_m,
+            '点估计最优_M': pe_m,
             '保守最优主种子': ((cons_best[0], cons_best[1],
                              point_cost(cons_best))
                           if cons_best is not None else None),
@@ -742,8 +746,8 @@ def main():
         print(f'最低成本 C*      : {c_fin:.6f} 元')
         print(f'导通概率(判定源) : p_hat={x_fin / m_fin:.4f}, '
               f'Wilson CI = [{lo_fin:.4f}, {hi_fin:.4f}] (M={m_fin})')
-        print(f'点估计最优 [PE]  : ({na_star}, {nb_star}) 成本 {c_star:.4f} 元 '
-              f'p_hat={x_star / m_star:.4f} (M={m_star})')
+        print(f'点估计最优 [PE]  : ({pe_na}, {pe_nb}) 成本 {pe_cost:.4f} 元 '
+              f'p_hat={pe_x / pe_m:.4f} (M={pe_m})')
         print(f'纯A 对照         : ({n_a_hat}, 0) 成本 {cost_a:.4f} 元')
         if cost_b is not None:
             print(f'纯B 对照         : (0, {n_b_hat}) 成本 {cost_b:.4f} 元')

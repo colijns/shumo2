@@ -10,8 +10,8 @@
   伸出盒外仍按完整圆柱处理的口径一致）。同源编号仅追踪来源，不自动
   连边，只有实际表面距离 ≤ δ 才建电连接；
 - 三类接触（均 ≤ δ = 1.8 nm 建边）：
-  A-A: GJK 精算（平端圆柱精确表面距离，复用 Q1 core.gjk_distance）；
-  A-B: max(球心到实心有限圆柱距离 - r_B, 0) = max(轴距 - r_A - r_B, 0)；
+  A-A: 轴距只作安全拒绝；侧面最近点可解析接受，其余候选走 GJK 精算；
+  A-B: 球心到有限平端实心圆柱的精确距离减 r_B；
   B-B: max(‖c_i - c_j‖ - 2r_B, 0)；
 - 电极距离：A 用 Q2 electrode_dist；B 用 max(c_x ∓ r_B ± HALF_L, 0)；
 - 成本：C = 1.05·N_A·V_A + 0.05·N_B·V_B（元，V 以 μm³ 计）。单件成本
@@ -24,6 +24,7 @@ Q3/first_passage.py（crossing_count 圆柱跨壁自检）、Q1/core.py UnionFin
 
 import os
 import sys
+from itertools import product
 
 import numpy as np
 
@@ -60,7 +61,7 @@ C_B_PER_UM3 = 0.05             # 介质B 单位体积价格 (元/μm³)
 c_A = C_A_PER_UM3 * V_A_UM3    # 单件A成本 ≈ 1.4844e-2 元
 c_B = C_B_PER_UM3 * V_B_UM3    # 单件B成本 ≈ 1.6755e-3 元
 
-THRESH_AB = R_A + R_B + DELTA  # 431.8：球心到轴线段初筛阈值（A-B 表面距 ≤ δ 等价）
+THRESH_AB = R_A + R_B + DELTA  # 231.8：球心到轴线段的安全候选阈值
 THRESH_BB = 2.0 * R_B + DELTA  # 401.8：球心距初筛阈值（B-B 表面距 ≤ δ 等价）
 TOL_CONTACT = 1e-6             # 建边浮点容差
 
@@ -97,8 +98,9 @@ def clip_balls(cs):
     """球越界片段：完整球模型。
 
     球心在盒内保留本体片段；某轴 c_k + r_B > HALF_L 越 + 界时生成沿 -L
-    平移的完整球片段，c_k - r_B < -HALF_L 时生成沿 +L 平移的完整球片段
-    （2r_B < L，不可能同轴双向越界，每球片段数 ≤ 4）。
+    平移的完整球片段，c_k - r_B < -HALF_L 时生成沿 +L 平移的完整球片段。
+    多轴同时越界时必须枚举组合平移，例如同时跨 x、y 时还需生成
+    (-L,-L,0) 镜像。因此每球最多产生 2^3=8 个周期片段。
     返回 {'c_img': (m,3) 片段球心, 'ball_idx': (m,) int 来源编号}。
     """
     cs = np.asarray(cs, dtype=float)
@@ -106,19 +108,22 @@ def clip_balls(cs):
     if n == 0:
         return {'c_img': np.empty((0, 3), dtype=float),
                 'ball_idx': np.empty(0, dtype=int)}
-    imgs = [cs]
-    idxs = [np.arange(n)]
-    for a in range(3):
-        shift = np.zeros(3)
-        for mask, s in ((cs[:, a] - R_B < -HALF_L, 1.0),
-                        (cs[:, a] + R_B > HALF_L, -1.0)):
-            if mask.any():
-                v = shift.copy()
-                v[a] = s * L
-                imgs.append(cs[mask] + v)
-                idxs.append(np.nonzero(mask)[0])
-    return {'c_img': np.concatenate(imgs, axis=0),
-            'ball_idx': np.concatenate(idxs)}
+    imgs = []
+    idxs = []
+    for index, center in enumerate(cs):
+        choices = []
+        for coordinate in range(3):
+            axis_choices = [0]
+            if center[coordinate] - R_B < -HALF_L:
+                axis_choices.append(1)
+            if center[coordinate] + R_B > HALF_L:
+                axis_choices.append(-1)
+            choices.append(axis_choices)
+        for shift_index in product(*choices):
+            imgs.append(center + L * np.asarray(shift_index, dtype=float))
+            idxs.append(index)
+    return {'c_img': np.asarray(imgs, dtype=float).reshape(-1, 3),
+            'ball_idx': np.asarray(idxs, dtype=int)}
 
 
 def ball_crossing_ratio(cs):
@@ -135,9 +140,15 @@ def sphere_electrode_dist(cs):
 
     返回 (dL, dR)，clamp ≥ 0（球穿过电极面即接触，距离 0）。
     """
-    cx = cs[:, 0]
-    dL = np.maximum(cx - R_B + HALF_L, 0.0)
-    dR = np.maximum(HALF_L - cx - R_B, 0.0)
+    cs = np.asarray(cs, dtype=float)
+    # 电极是有限正方形而不是无限平面。周期镜像球心可能在 y/z 方向位于
+    # 基本盒外，必须计算球心到电极正方形的距离，不能只看 x 坐标。
+    dy = np.maximum(np.abs(cs[:, 1]) - HALF_L, 0.0)
+    dz = np.maximum(np.abs(cs[:, 2]) - HALF_L, 0.0)
+    center_left = np.sqrt((cs[:, 0] + HALF_L) ** 2 + dy ** 2 + dz ** 2)
+    center_right = np.sqrt((cs[:, 0] - HALF_L) ** 2 + dy ** 2 + dz ** 2)
+    dL = np.maximum(center_left - R_B, 0.0)
+    dR = np.maximum(center_right - R_B, 0.0)
     return dL, dR
 
 
@@ -146,16 +157,42 @@ def cost(na, nb):
     return c_A * na + c_B * nb
 
 
-GJK_EPS = 1e-3   # GJK 复核临界带（nm）：轴距距阈值远时解析判定，近时 GJK 复核
+def _segment_distance_params_batch(a1, b1, a2, b2):
+    """线段距离及最近点参数 s,t（与 Q2 Ericson 批量实现同分支）。"""
+    uvec = b1 - a1
+    vvec = b2 - a2
+    w = a1 - a2
+    uu = np.einsum('ij,ij->i', uvec, uvec)
+    uv = np.einsum('ij,ij->i', uvec, vvec)
+    vv = np.einsum('ij,ij->i', vvec, vvec)
+    uw = np.einsum('ij,ij->i', uvec, w)
+    vw = np.einsum('ij,ij->i', vvec, w)
+    denom = uu * vv - uv * uv
+    s = np.where(
+        denom < 1e-24,
+        0.0,
+        np.clip((uv * vw - vv * uw) / np.maximum(denom, 1e-24),
+                0.0, 1.0),
+    )
+    t = (uv * s + vw) / np.maximum(vv, 1e-24)
+    low = t < 0.0
+    s = np.where(
+        low, np.clip(-uw / np.maximum(uu, 1e-24), 0.0, 1.0), s)
+    t = np.where(low, 0.0, t)
+    high = t > 1.0
+    s = np.where(
+        high, np.clip((uv - uw) / np.maximum(uu, 1e-24), 0.0, 1.0), s)
+    t = np.where(high, 1.0, t)
+    p = a1 + s[:, None] * uvec
+    q = a2 + t[:, None] * vvec
+    return np.linalg.norm(p - q, axis=1), s, t
 
 
 def _aa_edges_all(p1s, p2s, a_lo, a_hi):
     """A-A 全量接触边（片段全局 id 对）：AABB 预筛 → 轴距解析 → 临界带 GJK 复核。
 
-    有限平端圆柱均为凸集，两圆柱表面最短距离 = max(轴线段距离 − 2R_A, 0)，
-    故接触判定 d_axis ≤ 2R_A + δ（= AXIS_THRESH）与 Q2 的 GJK 判定数学等价。
-    为消除解析式与 GJK 在临界点的数值歧义，仅对 |d_axis − AXIS_THRESH| ≤ GJK_EPS
-    的候选对调用 GJK 复核（每 trial 通常 0~10 对，GJK 调用量降 ~50×）。
+    轴线段距离减 2R_A 是胶囊体距离，不是有限平端圆柱的精确距离。它只能
+    安全拒绝 d_axis > 2R_A+δ 的候选；所有剩余候选均须调用 GJK 精算。
     """
     n = len(p1s)
     if n < 2:
@@ -168,24 +205,52 @@ def _aa_edges_all(p1s, p2s, a_lo, a_hi):
     ii, jj = np.nonzero(ok)
     if not len(ii):
         return np.empty((0, 2), dtype=np.int64)
-    d = geo.segment_distance_batch(p1s[ii], p2s[ii], p1s[jj], p2s[jj])
-    near = d <= geo.AXIS_THRESH + GJK_EPS
-    out = [(int(ii[m]), int(jj[m])) for m in np.nonzero(near)[0]
-           if d[m] <= geo.AXIS_THRESH - GJK_EPS]      # 明确低于阈值：解析判定
-    for m in np.nonzero(near)[0]:
-        if abs(d[m] - geo.AXIS_THRESH) <= GJK_EPS:
-            fi, fj = int(ii[m]), int(jj[m])
-            if geo._fragment_gjk(p1s[fi], p2s[fi], p1s[fj], p2s[fj]) \
-                    <= DELTA + TOL_CONTACT:
-                out.append((fi, fj))
+    d, s, t = _segment_distance_params_batch(
+        p1s[ii], p2s[ii], p1s[jj], p2s[jj])
+    candidate = np.nonzero(d <= geo.AXIS_THRESH + TOL_CONTACT)[0]
+    out = []
+    for m in candidate:
+        fi, fj = int(ii[m]), int(jj[m])
+        # 两最近轴点均严格位于线段内部时，公共法向同时垂直于两轴，
+        # 此时平端圆柱的侧面距离精确等于 max(d_axis-2R,0)。
+        # 涉及任一端点时必须走 GJK，防止把胶囊半球误当成圆柱端面。
+        interior = (1e-10 < s[m] < 1.0 - 1e-10
+                    and 1e-10 < t[m] < 1.0 - 1e-10)
+        if interior or geo._fragment_gjk(
+                p1s[fi], p2s[fi], p1s[fj], p2s[fj]) \
+                <= DELTA + TOL_CONTACT:
+            out.append((fi, fj))
     return np.asarray(out, dtype=np.int64).reshape(-1, 2)
+
+
+def point_finite_cylinder_distance_batch(p1s, p2s, points, radius=R_A):
+    """点到有限平端实心圆柱的精确距离（向量化）。
+
+    设点相对圆柱中心的轴向超出量为 a，径向超出量为 b，则到实体的距离为
+    hypot(a,b)。该公式正确处理圆柱侧面、端面及端面圆周外侧区域。
+    """
+    p1s = np.asarray(p1s, dtype=float)
+    p2s = np.asarray(p2s, dtype=float)
+    points = np.asarray(points, dtype=float)
+    axis = p2s - p1s
+    lengths = np.linalg.norm(axis, axis=1)
+    unit = axis / np.maximum(lengths[:, None], 1e-30)
+    center = 0.5 * (p1s + p2s)
+    half = 0.5 * lengths
+    relative = points - center
+    axial_coordinate = np.einsum('ij,ij->i', relative, unit)
+    radial_vector = relative - axial_coordinate[:, None] * unit
+    radial_distance = np.linalg.norm(radial_vector, axis=1)
+    axial_excess = np.maximum(np.abs(axial_coordinate) - half, 0.0)
+    radial_excess = np.maximum(radial_distance - float(radius), 0.0)
+    return np.hypot(axial_excess, radial_excess)
 
 
 def _ab_edges_all(p1s, p2s, a_lo, a_hi, c_img, b_lo, b_hi):
     """A-B 全量接触边（A 段全局 id, B 片段全局 id）。
 
-    解析精确：球心到实心有限圆柱距离 ≤ r_A + r_B + δ（= THRESH_AB），
-    无需 GJK。AABB 矩阵预筛 → 批量线段距离。
+    球与圆柱接触当且仅当球心到有限平端圆柱实体的距离 ≤ r_B+δ。
+    轴线段距离 ≤ r_A+r_B+δ 只作为安全候选筛选，不能直接判连。
     """
     n_a, n_b = len(p1s), len(c_img)
     if n_a == 0 or n_b == 0:
@@ -197,8 +262,15 @@ def _ab_edges_all(p1s, p2s, a_lo, a_hi, c_img, b_lo, b_hi):
     bii, fjj = np.nonzero(ok)
     if not len(bii):
         return np.empty((0, 2), dtype=np.int64)
-    d = geo.segment_distance_batch(p1s[fjj], p2s[fjj], c_img[bii], c_img[bii])
-    m = np.nonzero(d <= THRESH_AB + TOL_CONTACT)[0]
+    axis_distance = geo.segment_distance_batch(
+        p1s[fjj], p2s[fjj], c_img[bii], c_img[bii])
+    candidate = axis_distance <= THRESH_AB + TOL_CONTACT
+    candidate_indices = np.nonzero(candidate)[0]
+    exact_distance = point_finite_cylinder_distance_batch(
+        p1s[fjj[candidate_indices]], p2s[fjj[candidate_indices]],
+        c_img[bii[candidate_indices]], radius=R_A)
+    m = candidate_indices[
+        exact_distance <= R_B + DELTA + TOL_CONTACT]
     return np.stack([fjj[m], bii[m]], axis=1)
 
 
