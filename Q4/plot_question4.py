@@ -107,9 +107,10 @@ def load_boundary(path):
 def plot_cost_probability():
     """图1：成本-导通概率散点图（搜索点 + 高概率前景 + 独立复算关键候选标注）。
 
-    横轴为总成本 C = c_A·N_A + c_B·N_B，纵轴为导通概率点估计；双轴收窄至
-    候选集中区（x 8.88~9.42 元、y 0.70~1.02）。密集点均聚为代表：搜索评估点
-    hexbin 密度格，p̂≥0.85 的 240 个候选按 N_A 聚为 54 个候选簇（点大小=簇内
+    横轴为总成本 C = c_A·N_A + c_B·N_B，纵轴为导通概率点估计。搜索评估点
+    （约 1 万点集中于 8.92~9.08 元）以成本细箱分位带呈现：10~90 与 25~75
+    分位填充带 + 中位数线，展示概率分布随成本上升的形态且零重叠；p̂≥0.85
+    的 240 个候选按 N_A 聚为 54 个候选簇（x 带固定 seed 抖动、点大小=簇内
     组合数、颜色=簇内最小 N_B），叠加独立种子复算的关键候选（星=可靠 /
     叉=跨线）。
     """
@@ -121,14 +122,27 @@ def plot_cost_probability():
     c_star = float(res['C_star_元'])
 
     fig, ax = plt.subplots(figsize=(9.2, 6.0))
-    # 背景：搜索评估点 hexbin 密度格（窗口内 ~1000 点聚为格子，每格一个代表）
-    mask = (cost >= 8.88) & (cost <= 9.42) & (p >= 0.70) & (p <= 1.02)
-    ax.hexbin(cost[mask], p[mask], gridsize=(27, 16), cmap='Greys',
-              mincnt=1, linewidths=0, alpha=0.7)
-    ax.scatter([], [], s=1, c='#A0A0A0',
-               label='搜索评估点密度（hexbin 聚合，$M=100$ 点估计）')
+    # 搜索评估点：成本细箱分位带（10~90/25~75 分位填充 + 中位数线），
+    # 避免逐点绘制重叠；窗口 8.88~9.16 内约 1 万点、9.16 以上搜索未覆盖
+    mask = (cost >= 8.88) & (cost <= 9.16)
+    edges = np.linspace(8.88, 9.16, 30)
+    xc, q10, q25, q50, q75, q90 = [], [], [], [], [], []
+    for i in range(len(edges) - 1):
+        m = mask & (cost >= edges[i]) & (cost < edges[i + 1])
+        if m.sum() < 5:
+            continue
+        q = np.percentile(p[m], [10, 25, 50, 75, 90])
+        xc.append(0.5 * (edges[i] + edges[i + 1]))
+        q10.append(q[0]); q25.append(q[1]); q50.append(q[2])
+        q75.append(q[3]); q90.append(q[4])
+    ax.fill_between(xc, q10, q90, color='#C8C8C8', alpha=0.55,
+                    label='搜索评估点 $\\hat P$ 10~90 分位带（$M=100$）')
+    ax.fill_between(xc, q25, q75, color='#8E8E8E', alpha=0.55,
+                    label='$\\hat P$ 25~75 分位带')
+    ax.plot(xc, q50, color='#444444', lw=1.4, label='$\\hat P$ 中位数')
     # 前景：p̂ ≥ 0.85 的候选按 N_A 聚簇——同 N_A 的达标组合合并为一个代表点：
-    # x=簇内最小成本、y=簇内最大 p̂、颜色=簇内最小 N_B、点大小=簇内组合数
+    # x=簇内最小成本（加固定 seed 抖动防重叠）、y=簇内最大 p̂、
+    # 颜色=簇内最小 N_B、点大小=簇内组合数
     groups = defaultdict(list)
     for na_i, nb_i, p_i in zip(na, nb, p):
         if p_i >= 0.85:
@@ -140,10 +154,11 @@ def plot_cost_probability():
         gy.append(max(x[1] for x in g))
         gc.append(min(x[0] for x in g))
         gs.append(len(g))
-    sc = ax.scatter(gx, gy, s=[16 + 7 * c for c in gs], c=gc, cmap='viridis',
-                    vmin=0, vmax=62, linewidths=0.4, edgecolors='#333333',
-                    label='$\\hat P\\geq0.85$ 候选簇（同 $N_A$ 聚合，'
-                          '点大小=簇内组合数）')
+    jit = np.random.default_rng(42).normal(0, 0.0015, size=len(gx))
+    sc = ax.scatter(np.asarray(gx) + jit, gy, s=[11 + 5 * c for c in gs],
+                    c=gc, cmap='viridis', vmin=0, vmax=62, linewidths=0.4,
+                    edgecolors='#333333', label='$\\hat P\\geq0.85$ 候选簇'
+                    '（同 $N_A$ 聚合，点大小=簇内组合数）')
     cb = fig.colorbar(sc, ax=ax, label='簇内最小介质B 数量 $N_B$（个）')
     # 独立种子复算关键候选（verify.csv）：星=可靠可行，叉=跨线
     drawn = set()
@@ -166,22 +181,22 @@ def plot_cost_probability():
     # 关键候选文字标注（白底框压灰点，窗口内重摆）
     bbox_kw = dict(boxstyle='round,pad=0.25', fc='white', ec='none', alpha=0.9)
     ax.annotate('搜索定位 $(598,62)$：\n8.981 元，$M=100$ 点估计 0.90，不可靠',
-                xy=(c_a * 598 + c_b * 62, 0.90), xytext=(8.90, 0.98),
+                xy=(c_a * 598 + c_b * 62, 0.90), xytext=(8.90, 0.97),
                 fontsize=8.5, color='#333333', bbox=bbox_kw,
                 arrowprops=dict(arrowstyle='->', color='#333333', lw=0.9))
     ax.annotate('$(608,14)$ 9.049 元：\n独立复算跨线',
-                xy=(c_a * 608 + c_b * 14, 0.8925), xytext=(8.90, 0.76),
+                xy=(c_a * 608 + c_b * 14, 0.8925), xytext=(8.91, 0.77),
                 fontsize=8.5, color='#4C72B0', bbox=bbox_kw,
                 arrowprops=dict(arrowstyle='->', color='#4C72B0', lw=0.9))
     ax.annotate(f'独立复算可靠 $({na_star},{nb_star})$ {c_star:.4f} 元',
-                xy=(c_star, 0.91075), xytext=(c_star + 0.06, 0.99),
+                xy=(c_star, 0.91075), xytext=(9.04, 0.99),
                 fontsize=8.5, color='#2e7d32', bbox=bbox_kw,
                 arrowprops=dict(arrowstyle='->', color='#2e7d32', lw=0.9))
     ax.set_xlabel('总成本 $C=c_A N_A+c_B N_B$（元）')
     ax.set_ylabel('导通概率点估计 $\\hat P$')
-    # 二次放大：候选实际集中于 x 8.93~9.16、y 0.85~0.96，双轴收窄
-    ax.set_xlim(8.88, 9.42)
-    ax.set_ylim(0.70, 1.02)
+    # 分位带图：x 8.88~9.24（9.16 以上搜索未覆盖），y 覆盖带与候选全貌
+    ax.set_xlim(8.88, 9.24)
+    ax.set_ylim(0.45, 1.02)
     ax.legend(loc='lower right', fontsize=8.5, framealpha=0.95)
     ax.grid(alpha=0.25)
     fig.tight_layout()
