@@ -1,284 +1,325 @@
 # 本程序及代码是在AI工具辅助下完成的
-# AI工具名称：DeepSeek‑V4‑Flash，版本 / 型号：DeepSeek‑V4‑Flash‑0731，开发机构 / 公司：深度求索（DeepSeek），版本发布日期：2026‑07‑31
+"""问题3：用完整实体首次导通分布估计90%最低填充量。
 
-"""问题3 入口：首次导通数量蒙特卡洛，90% 临界数量/体积分数估计。
-
-口径（docs/问题3_新版.md）：
-- N_max 根固定顺序完整介质 → 增量早停记录 N_c（嵌套共同样本）；
-- P̂(N) = 经验 CDF，天然单调；N̂90 = min{N: P̂(N) ≥ 0.90}；
-- N_safe = min{N: Wilson 95% 下界 ≥ 0.90}（保守可靠约束）；
-- Bootstrap 重抽样得临界体积分数 95% 区间（宽度 > 0.01pp 则提示追加）；
-- 敏感性口径（--same-source，假设一：同源片段自动电连续）对照；
-- --verify 用未参与搜索的新种子独立复算候选点。
-
-环境变量（与 Q2 同风格）：
-SHUMO_Q3_TRIALS（默认 2000）、SHUMO_Q3_WORKERS（默认 min(8, cpu)）、
-SHUMO_Q3_BASE_SEED（默认 42）、SHUMO_Q3_NMAX（默认 900）。
+核心输出不是单个体积分数上的独立概率，而是每次共同随机样本的首次导通
+根数。外切多棱柱给出真实临界根数下界，内接多棱柱给出上界；两者随正多
+边形边数增加而收敛。
 """
 
-import argparse
+from concurrent.futures import ProcessPoolExecutor
+from decimal import Decimal, ROUND_HALF_UP
+import csv
+import json
+import math
 import os
 import sys
 import time
-from concurrent.futures import ProcessPoolExecutor
 
 import numpy as np
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'Q2'))
-import first_passage as fp  # noqa: E402
 
-from monte_carlo import wilson_ci, Z_WILSON  # noqa: E402
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
+Q2_DIR = os.path.join(ROOT, 'Q2')
+for path in (HERE, Q2_DIR):
+    if path not in sys.path:
+        sys.path.insert(0, path)
 
-N_MAX_DEFAULT = 900
-M_DEFAULT = 2000
-B_BOOTSTRAP = 2000          # Bootstrap 重抽样次数
-BOOT_ALPHA = 0.05           # 95% 区间
-P_TARGET = 0.90             # 题目导通概率要求
-WILSON_MARGIN_PP = 0.01     # Bootstrap 区间宽度阈值（百分点）
-VERIFY_SEED_OFFSET = 12345  # 独立复算种子偏移
-
-OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results')
-CSV_MAIN = os.path.join(OUT_DIR, 'question3_result.csv')
-CSV_CURVE = os.path.join(OUT_DIR, 'question3_curve.csv')
-CSV_VERIFY = os.path.join(OUT_DIR, 'question3_verify.csv')
-# 敏感性口径（假设一）结果独立落盘，避免覆盖主结果
-CSV_MAIN_H1 = os.path.join(OUT_DIR, 'question3_result_hypothesis1.csv')
-CSV_CURVE_H1 = os.path.join(OUT_DIR, 'question3_curve_hypothesis1.csv')
+import monte_carlo as mc  # noqa: E402
+import solid_first_passage as first_passage  # noqa: E402
+import solid_geometry  # noqa: E402
 
 
-def fmt_pct(v):
-    """百分比输出：保留百分号下两位小数。"""
-    return f'{v * 100:.2f}%'
+TARGET = float(os.environ.get('SHUMO_Q3_TARGET', '0.90'))
+N_MAX = int(os.environ.get('SHUMO_Q3_NMAX', '900'))
+TRIALS = int(os.environ.get('SHUMO_Q3_TRIALS', '20'))
+N_SIDES = int(os.environ.get('SHUMO_Q3_SIDES', '64'))
+WORKERS = int(os.environ.get(
+    'SHUMO_Q3_WORKERS', str(min(8, os.cpu_count() or 1))))
+BATCH_SIZE = int(os.environ.get('SHUMO_Q3_BATCH_SIZE', '1'))
+BASE_SEED = int(os.environ.get('SHUMO_Q3_BASE_SEED', '20260808'))
+BOOTSTRAP_REPEATS = int(os.environ.get('SHUMO_Q3_BOOTSTRAP', '2000'))
+
+RESULT_DIR = os.path.join(HERE, 'results')
+SUMMARY_JSON = os.path.join(RESULT_DIR, 'question3_solid_summary.json')
+CURVE_CSV = os.path.join(RESULT_DIR, 'question3_solid_curve.csv')
 
 
-def empirical_cdf(contacts, n_max, m):
-    """经验 CDF P̂(N) 与逐 N Wilson 区间。
-
-    contacts: M 个 N_c（None = N_max 内未导通，视为 > n_max）。
-    返回 (N 数组, p_hat 数组, lo 数组, hi 数组, x 数组)。
-    """
-    arr = np.array([v if v is not None else n_max + 1 for v in contacts])
-    Ns = np.arange(1, n_max + 1, dtype=int)
-    x = np.array([int(np.sum(arr <= n)) for n in Ns])
+def empirical_cdf(contacts, n_max, target=TARGET):
+    """首次导通根数样本转为单调经验CDF及逐点Wilson区间。"""
+    m = len(contacts)
+    if m == 0:
+        raise ValueError('首次导通样本不能为空')
+    values = np.asarray(
+        [value if value is not None else n_max + 1 for value in contacts],
+        dtype=int,
+    )
+    if np.any(values < 1) or np.any(values > n_max + 1):
+        raise ValueError('首次导通根数超出允许范围')
+    histogram = np.bincount(values, minlength=n_max + 2)
+    x = np.cumsum(histogram)[1:n_max + 1]
     p_hat = x / m
-    lo = np.empty_like(p_hat)
-    hi = np.empty_like(p_hat)
-    for i, xi in enumerate(x):
-        _, lo[i], hi[i] = wilson_ci(xi, m)
-    return Ns, p_hat, lo, hi, x
+    lower = np.empty(n_max, dtype=float)
+    upper = np.empty(n_max, dtype=float)
+    for index, successes in enumerate(x):
+        _, lower[index], upper[index] = mc.wilson_ci(int(successes), m)
+    indices = np.arange(1, n_max + 1, dtype=int)
+    point_hit = np.nonzero(p_hat >= target)[0]
+    safe_hit = np.nonzero(lower >= target)[0]
+    return {
+        'n': indices,
+        'x': x,
+        'p_hat': p_hat,
+        'ci_lower': lower,
+        'ci_upper': upper,
+        'n_hat': int(indices[point_hit[0]]) if len(point_hit) else None,
+        'n_safe': int(indices[safe_hit[0]]) if len(safe_hit) else None,
+    }
 
 
-def n_90_estimates(contacts, n_max, m):
-    """点估计 N̂90 与保守临界 N_safe。返回 (n_hat, n_safe) 或 None。"""
-    Ns, p_hat, lo, hi, _ = empirical_cdf(contacts, n_max, m)
-    hit = np.nonzero(p_hat >= P_TARGET)[0]
-    if len(hit) == 0:
-        return None, None
-    n_hat = int(Ns[hit[0]])
-    safe = np.nonzero(lo >= P_TARGET)[0]
-    n_safe = int(Ns[safe[0]]) if len(safe) else None
-    return n_hat, n_safe
-
-
-def bootstrap_ci(contacts, n_max, m, b=B_BOOTSTRAP):
-    """Bootstrap 重抽样：90% 分位数（N̂90）分布 → 95% CI（换算体积分数）。
-
-    返回 (ci_lo_pp, ci_hi_pp, width_pp)。宽度单位：百分点。
-    """
-    arr = np.array([v if v is not None else n_max + 1 for v in contacts])
-    rng = np.random.default_rng(999)   # Bootstrap 自身固定种子（可复现）
-    qs = np.empty(b)
-    for k in range(b):
-        sample = arr[rng.integers(0, m, size=m)]
-        qs[k] = np.quantile(sample, P_TARGET, method='higher')
-    lo = np.percentile(qs, 100 * BOOT_ALPHA / 2)
-    hi = np.percentile(qs, 100 * (1 - BOOT_ALPHA / 2))
-    phi = fp.geo.V_A / fp.geo.V_BOX * 100.0   # 单根圆柱对应的百分点数
-    return lo * phi, hi * phi, (hi - lo) * phi
-
-
-def crossing_ratio_check(seed, n_samples=2000):
-    """全量跨壁比例验证：与理论基准（约 60.8%）对照。
-
-    §7 精确判定：|c_k| + e_k > L/2 任一轴成立即跨壁。
-    返回 {'n_cross', 'n_cyl', 'ratio'}。
-    """
+def bootstrap_n90(contacts, n_max, repeats=BOOTSTRAP_REPEATS,
+                  target=TARGET, seed=99173):
+    """首次导通根数90%分位数的可复现Bootstrap区间。"""
+    if repeats <= 0:
+        return None
+    values = np.asarray(
+        [value if value is not None else n_max + 1 for value in contacts],
+        dtype=int,
+    )
     rng = np.random.default_rng(seed)
-    c, u, h = fp.geo.generate_cylinders(n_samples, rng)
-    n_cross, n_cyl = fp.crossing_count(c, u, h)
-    return {'n_cross': n_cross, 'n_cyl': n_cyl, 'ratio': n_cross / n_cyl}
+    quantiles = np.empty(repeats, dtype=float)
+    for index in range(repeats):
+        sample = values[rng.integers(0, len(values), size=len(values))]
+        quantiles[index] = np.quantile(sample, target, method='higher')
+    return {
+        'n_lower': float(np.percentile(quantiles, 2.5)),
+        'n_upper': float(np.percentile(quantiles, 97.5)),
+    }
 
 
-def _run_trials(args):
-    """进程池 worker：跑一批试验，返回 N_c 列表 + 跨壁统计。"""
-    n_max, m, seed, same_source = args
-    contacts, stats = fp.simulate_trials(n_max, m=m, seed=seed,
-                                         same_source=same_source)
-    return contacts, stats
+def phi_percent(n_cylinders):
+    if n_cylinders is None:
+        return None
+    return float(n_cylinders) * mc.geo.V_A / mc.geo.V_BOX * 100.0
 
 
-def run_all(n_max, m, base_seed, workers, same_source):
-    """并行跑 M 次试验，聚合样本与统计。"""
-    if m <= 0 or workers <= 0:
-        raise ValueError('M 与 WORKERS 必须为正整数')
-    batch = max(1, min(50, m))
-    jobs = []
-    remaining = m
-    batch_index = 0
-    while remaining:
-        bm = min(batch, remaining)
-        seed = base_seed + batch_index * 100_000
-        jobs.append((n_max, bm, seed, same_source))
-        remaining -= bm
-        batch_index += 1
-    workers = min(workers, len(jobs))
-    print(f'并行设置：workers={workers}, batch_size={batch}, jobs={len(jobs)}',
-          flush=True)
-    contacts_all, stats_all = [], []
-    with ProcessPoolExecutor(max_workers=workers) as ex:
-        for contacts, stats in ex.map(_run_trials, jobs):
-            contacts_all.extend(contacts)
-            stats_all.append(stats)
-    n_never = sum(s['n_never'] for s in stats_all)
-    n_cross = sum(s['n_cross'] for s in stats_all)
-    n_same = sum(s['n_same_contacts'] for s in stats_all)
-    stats = {'n_never': n_never, 'n_cross': n_cross,
-             'n_same_contacts': n_same}
-    return contacts_all, stats
+def round_half_up_2(value):
+    if value is None:
+        return None
+    return float(Decimal(str(value)).quantize(
+        Decimal('0.01'), rounding=ROUND_HALF_UP))
+
+
+def ceil_2(value):
+    if value is None:
+        return None
+    return math.ceil(value * 100.0 - 1e-12) / 100.0
+
+
+def threshold_summary(curve, contacts, n_max, bootstrap_seed):
+    n_hat = curve['n_hat']
+    n_safe = curve['n_safe']
+
+    def at(n_value):
+        if n_value is None:
+            return None
+        index = n_value - 1
+        return {
+            'n': n_value,
+            'x': int(curve['x'][index]),
+            'p_hat': float(curve['p_hat'][index]),
+            'ci_lower': float(curve['ci_lower'][index]),
+            'ci_upper': float(curve['ci_upper'][index]),
+            'phi_percent_raw': phi_percent(n_value),
+            'phi_percent_rounded': round_half_up_2(phi_percent(n_value)),
+        }
+
+    bootstrap = bootstrap_n90(
+        contacts, n_max, seed=bootstrap_seed)
+    if bootstrap is not None:
+        bootstrap['phi_lower_percent'] = phi_percent(bootstrap['n_lower'])
+        bootstrap['phi_upper_percent'] = phi_percent(bootstrap['n_upper'])
+        bootstrap['width_percentage_point'] = (
+            bootstrap['phi_upper_percent'] - bootstrap['phi_lower_percent'])
+    return {
+        'point': at(n_hat),
+        'safe': at(n_safe),
+        'bootstrap': bootstrap,
+        'n_never': sum(value is None for value in contacts),
+    }
+
+
+def _batch_worker(args):
+    n_max, trial_indices, base_seed, n_sides = args
+    outer_contacts = []
+    inner_contacts = []
+    stats = {
+        'm': 0,
+        'bracket_violations': 0,
+        'uncertain_samples': 0,
+        'outer_gjk': 0,
+        'inner_gjk': 0,
+        'outer_crossing': 0,
+        'inner_crossing': 0,
+    }
+    for trial_index in trial_indices:
+        seed = base_seed + int(trial_index)
+        outer, inner, one = first_passage.simulate_paired_trials(
+            n_max, m=1, seed=seed, n_sides=n_sides)
+        outer_contacts.extend(outer)
+        inner_contacts.extend(inner)
+        stats['m'] += 1
+        for key in stats:
+            if key != 'm':
+                stats[key] += one[key]
+    return outer_contacts, inner_contacts, stats
+
+
+def run_trials(n_max=N_MAX, trials=TRIALS, workers=WORKERS,
+               batch_size=BATCH_SIZE, base_seed=BASE_SEED,
+               n_sides=N_SIDES):
+    """并行运行实体上下界首次导通试验。"""
+    if trials <= 0 or workers <= 0 or batch_size <= 0:
+        raise ValueError('试验数、进程数和批大小必须为正整数')
+    chunks = [list(range(start, min(start + batch_size, trials)))
+              for start in range(0, trials, batch_size)]
+    jobs = [(n_max, chunk, base_seed, n_sides) for chunk in chunks]
+    outer_contacts = []
+    inner_contacts = []
+    totals = {
+        'm': 0,
+        'bracket_violations': 0,
+        'uncertain_samples': 0,
+        'outer_gjk': 0,
+        'inner_gjk': 0,
+        'outer_crossing': 0,
+        'inner_crossing': 0,
+    }
+    with ProcessPoolExecutor(max_workers=min(workers, len(jobs))) as executor:
+        for outer, inner, stats in executor.map(_batch_worker, jobs):
+            outer_contacts.extend(outer)
+            inner_contacts.extend(inner)
+            for key in totals:
+                totals[key] += stats[key]
+    return outer_contacts, inner_contacts, totals
+
+
+def _curve_rows(outer_curve, inner_curve):
+    for index, n_value in enumerate(outer_curve['n']):
+        yield {
+            'n': int(n_value),
+            'phi_percent': phi_percent(n_value),
+            'outer_p_hat': float(outer_curve['p_hat'][index]),
+            'outer_ci_lower': float(outer_curve['ci_lower'][index]),
+            'outer_ci_upper': float(outer_curve['ci_upper'][index]),
+            'inner_p_hat': float(inner_curve['p_hat'][index]),
+            'inner_ci_lower': float(inner_curve['ci_lower'][index]),
+            'inner_ci_upper': float(inner_curve['ci_upper'][index]),
+        }
 
 
 def main():
-    ap = argparse.ArgumentParser(description='问题3 首次导通数量蒙特卡洛')
-    ap.add_argument('--same-source', action='store_true',
-                    help='敏感性口径：同源片段自动电连续（假设一）')
-    ap.add_argument('--verify', action='store_true',
-                    help='候选点独立复算（新种子）')
-    ap.add_argument('--smoke', action='store_true',
-                    help='小样本冒烟（M=30）')
-    args = ap.parse_args()
+    if not (0.0 < TARGET < 1.0):
+        raise ValueError('目标概率必须位于0和1之间')
+    if N_MAX <= 0 or N_SIDES < 8:
+        raise ValueError('N_MAX必须为正，横截面边数至少为8')
+    print(
+        f'Q3实体首次导通: N_max={N_MAX}, M={TRIALS}, sides={N_SIDES}, '
+        f'workers={min(WORKERS, TRIALS)}, target={TARGET:.2f}',
+        flush=True,
+    )
+    started = time.perf_counter()
+    outer_contacts, inner_contacts, stats = run_trials()
+    outer_curve = empirical_cdf(outer_contacts, N_MAX)
+    inner_curve = empirical_cdf(inner_contacts, N_MAX)
+    outer_summary = threshold_summary(
+        outer_curve, outer_contacts, N_MAX, bootstrap_seed=99173)
+    inner_summary = threshold_summary(
+        inner_curve, inner_contacts, N_MAX, bootstrap_seed=99174)
 
-    os.makedirs(OUT_DIR, exist_ok=True)
-    n_max = int(os.environ.get('SHUMO_Q3_NMAX', str(N_MAX_DEFAULT)))
-    m = int(os.environ.get('SHUMO_Q3_TRIALS', str(M_DEFAULT)))
-    base_seed = int(os.environ.get('SHUMO_Q3_BASE_SEED', '42'))
-    workers = int(os.environ.get(
-        'SHUMO_Q3_WORKERS', str(min(8, os.cpu_count() or 1))))
-    if args.smoke:
-        m = 30
-    print(f'问题3：N_max={n_max}, M={m}, '
-          f'口径={"假设一(同源电连续)" if args.same_source else "假设二(片段独立)"}',
-          flush=True)
-    t_total0 = time.perf_counter()
+    outer_n = outer_curve['n_hat']
+    inner_n = inner_curve['n_hat']
+    bracket_closed = (
+        outer_n is not None and inner_n is not None and outer_n <= inner_n)
+    empirical_n_interval = [outer_n, inner_n] if bracket_closed else None
+    empirical_phi_interval = (
+        [phi_percent(outer_n), phi_percent(inner_n)]
+        if bracket_closed else None)
+    same_reported_value = (
+        bracket_closed
+        and round_half_up_2(empirical_phi_interval[0])
+        == round_half_up_2(empirical_phi_interval[1]))
+    bootstrap_widths = [
+        summary_item['bootstrap']['width_percentage_point']
+        for summary_item in (outer_summary, inner_summary)
+        if summary_item['bootstrap'] is not None
+    ]
+    bootstrap_precision_met = (
+        len(bootstrap_widths) == 2 and max(bootstrap_widths) <= 0.01)
+    conservative_safe_n = inner_curve['n_safe']
 
-    contacts, stats = run_all(n_max, m, base_seed, workers, args.same_source)
-    t_run = time.perf_counter() - t_total0
-
-    Ns, p_hat, lo, hi, x = empirical_cdf(contacts, n_max, m)
-    n_hat, n_safe = n_90_estimates(contacts, n_max, m)
-    phi_per_cyl = fp.geo.V_A / fp.geo.V_BOX * 100.0   # 每根圆柱百分点
-    if n_hat is None:
-        print(f'警告：N_max={n_max} 内导通概率未达 90%（p̂={p_hat[-1]:.4f}），'
-              '需提高 N_max')
-        n_safe = None
-
-    boot_lo, boot_hi, boot_w = bootstrap_ci(contacts, n_max, m)
-
-    cross_ratio = crossing_ratio_check(base_seed)
-    never_frac = stats['n_never'] / m
-
-    # 主结果汇总
-    res = {
-        '口径': '假设二(片段独立)' if not args.same_source else '假设一(同源电连续)',
-        'n_max': n_max,
-        'm': m,
-        'n_never': stats['n_never'],
-        'never_frac': never_frac,
-        'n_hat_90': n_hat,
-        'phi_hat_90_pp': (n_hat * phi_per_cyl) if n_hat else None,
-        'n_safe': n_safe,
-        'phi_safe_pp': (n_safe * phi_per_cyl) if n_safe else None,
-        'x_at_n_hat': int(x[n_hat - 1]) if n_hat else None,
-        'p_at_n_hat': float(p_hat[n_hat - 1]) if n_hat else None,
-        'ci_at_n_hat': (float(lo[n_hat - 1]), float(hi[n_hat - 1]))
-                       if n_hat else None,
-        'bootstrap_ci_pp': (boot_lo, boot_hi),
-        'bootstrap_width_pp': boot_w,
-        'cross_ratio': cross_ratio['ratio'],
-        'n_cross': cross_ratio['n_cross'],
-        'elapsed_s': time.perf_counter() - t_total0,
+    summary = {
+        'problem': 'A题问题3',
+        'method': '完整实体内接/外切多棱柱首次导通上下界',
+        'config': {
+            'target_probability': TARGET,
+            'n_max': N_MAX,
+            'trials': TRIALS,
+            'n_sides': N_SIDES,
+            'radial_error_bound_nm': solid_geometry.radial_error_bound(
+                mc.geo.R, N_SIDES),
+            'workers': min(WORKERS, TRIALS),
+            'batch_size': BATCH_SIZE,
+            'base_seed': BASE_SEED,
+            'trial_seed_formula': 'base_seed + trial_index',
+            'same_source_auto_connection': False,
+        },
+        'outer_lower_threshold': outer_summary,
+        'inner_upper_threshold': inner_summary,
+        'empirical_geometry_bracket_n': empirical_n_interval,
+        'empirical_geometry_bracket_phi_percent': empirical_phi_interval,
+        'same_value_after_two_decimal_rounding': same_reported_value,
+        'conservative_point_n': inner_n,
+        'conservative_point_phi_percent_raw': phi_percent(inner_n),
+        'conservative_95_n': conservative_safe_n,
+        'conservative_95_phi_percent_raw': phi_percent(conservative_safe_n),
+        'conservative_95_phi_percent_ceiling_2': ceil_2(
+            phi_percent(conservative_safe_n)),
+        'bootstrap_precision_target_percentage_point': 0.01,
+        'bootstrap_precision_met': bootstrap_precision_met,
+        'diagnostics': stats,
+        'wall_elapsed_s': time.perf_counter() - started,
+        'formal_result_ready': bool(
+            bracket_closed and stats['bracket_violations'] == 0
+            and conservative_safe_n is not None
+            and bootstrap_precision_met),
     }
 
-    # 终端主表
-    print('\n===== 问题3 结果 =====')
-    print(f'口径              : {res["口径"]}')
-    print(f'N_max / M         : {n_max} / {m}')
-    print(f'未导通试验        : {stats["n_never"]} ({never_frac * 100:.2f}%)')
-    print(f'N90_hat (点估计)  : {n_hat}  ->  phi_hat* = {fmt_pct(n_hat * phi_per_cyl / 100)}'
-          f'（单根步长 {phi_per_cyl:.4f}pp）')
-    if n_hat:
-        print(f'  P_hat(N90_hat)   : {p_hat[n_hat - 1]:.4f}, '
-              f'Wilson CI = [{lo[n_hat - 1]:.4f}, {hi[n_hat - 1]:.4f}]')
-    if n_safe:
-        print(f'Nsafe (下界>=90%) : {n_safe}  ->  phi_safe = '
-              f'{fmt_pct(n_safe * phi_per_cyl / 100)}')
-    else:
-        print('Nsafe (下界>=90%) : 未达到（需提高 N_max 或增加试验）')
-    print(f'Bootstrap 95% 区间: [{fmt_pct(boot_lo / 100)}, '
-          f'{fmt_pct(boot_hi / 100)}]（宽 {boot_w:.4f}pp）')
-    print(f'跨壁比例          : {cross_ratio["ratio"]:.4f} '
-          f'({cross_ratio["n_cross"]}/{cross_ratio["n_cyl"]}，基准约 60.8%）')
-    print(f'总耗时            : {time.perf_counter() - t_total0:.1f}s '
-          f'(模拟 {t_run:.1f}s)')
+    os.makedirs(RESULT_DIR, exist_ok=True)
+    with open(SUMMARY_JSON, 'w', encoding='utf-8') as handle:
+        json.dump(summary, handle, ensure_ascii=False, indent=2)
+    fields = [
+        'n', 'phi_percent', 'outer_p_hat', 'outer_ci_lower',
+        'outer_ci_upper', 'inner_p_hat', 'inner_ci_lower', 'inner_ci_upper',
+    ]
+    with open(CURVE_CSV, 'w', newline='', encoding='utf-8-sig') as handle:
+        writer = csv.DictWriter(handle, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(_curve_rows(outer_curve, inner_curve))
 
-    # 主结果 CSV（敏感性口径写入独立文件）
-    csv_main = CSV_MAIN_H1 if args.same_source else CSV_MAIN
-    with open(csv_main, 'w', encoding='utf-8') as f:
-        import csv
-        w = csv.DictWriter(f, fieldnames=list(res.keys()))
-        w.writeheader()
-        w.writerow(res)
-
-    # 曲线 CSV（供绘图）
-    csv_curve = CSV_CURVE_H1 if args.same_source else CSV_CURVE
-    import csv as _csv
-    with open(csv_curve, 'w', newline='', encoding='utf-8') as f:
-        w = _csv.writer(f)
-        w.writerow(['N', 'phi_pp', 'p_hat', 'ci_lower', 'ci_upper', 'x'])
-        for i, n in enumerate(Ns):
-            w.writerow([n, f'{n * phi_per_cyl:.6f}', f'{p_hat[i]:.6f}',
-                        f'{lo[i]:.6f}', f'{hi[i]:.6f}', x[i]])
-
-    # 独立复算（新种子，未参与搜索）
-    if args.verify and not args.same_source:
-        if n_hat is None or n_safe is None:
-            print('警告：候选点缺失，跳过独立复算')
-        else:
-            verify_seed = base_seed + VERIFY_SEED_OFFSET
-            v_contacts, v_stats = run_all(n_max, m, verify_seed, workers, False)
-            v_Ns, v_p, v_lo, v_hi, v_x = empirical_cdf(v_contacts, n_max, m)
-            rows = []
-            for label, n in (('N90_hat', n_hat), ('N90_hat-1', n_hat - 1),
-                             ('N90_hat+1', n_hat + 1), ('Nsafe', n_safe)):
-                i = n - 1
-                rows.append({'candidate': label, 'N': n,
-                             'p_hat': v_p[i], 'ci_lower': v_lo[i],
-                             'ci_upper': v_hi[i], 'x': v_x[i]})
-            print('\n===== 独立复算（新种子）=====')
-            for r in rows:
-                ok = '可靠' if r['ci_lower'] >= P_TARGET else (
-                    '不足' if r['ci_upper'] < P_TARGET else '区间跨线')
-                print(f"  {r['candidate']:8s} N={r['N']}: p_hat={r['p_hat']:.4f} "
-                      f"CI=[{r['ci_lower']:.4f}, {r['ci_upper']:.4f}] {ok}")
-            with open(CSV_VERIFY, 'w', newline='', encoding='utf-8') as f:
-                w = _csv.DictWriter(f, fieldnames=list(rows[0].keys()))
-                w.writeheader()
-                w.writerows(rows)
-            # 单调性检查：更高数量不下降
-            mono_ok = np.all(np.diff(v_p) >= -1e-12)
-            print(f'  单调性（更高 N 不降）: {mono_ok}')
-
-    print(f'\n结果已写入 {csv_main} / {csv_curve}')
+    print('\n===== Q3实体上下界阶段结果 =====')
+    print(f'本轮外切经验临界（几何下界）: {outer_n}')
+    print(f'本轮内接经验临界（几何上界）: {inner_n}')
+    if empirical_phi_interval is not None:
+        print('本轮经验临界体积分数的几何夹逼: '
+              f'[{empirical_phi_interval[0]:.6f}%, '
+              f'{empirical_phi_interval[1]:.6f}%]')
+    print(f'上下界违例: {stats["bracket_violations"]}, '
+          f'样本级上下界有间隙: {stats["uncertain_samples"]}/{TRIALS}')
+    print(f'Bootstrap精度达标: {bootstrap_precision_met}, '
+          f'正式结果就绪: {summary["formal_result_ready"]}')
+    print(f'结果: {SUMMARY_JSON}')
+    print(f'曲线: {CURVE_CSV}')
 
 
 if __name__ == '__main__':

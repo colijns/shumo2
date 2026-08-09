@@ -22,6 +22,12 @@ class TestMonteCarloCore(unittest.TestCase):
         self.assertEqual(mc.n_cylinders(0.007), 495)
         self.assertEqual(mc.n_cylinders(0.01), 707)
 
+    def test_half_up_rounding(self):
+        phi_for_two_and_half = 2.5 * geo.V_A / geo.V_BOX
+        self.assertEqual(mc.n_cylinders(phi_for_two_and_half), 3)
+        with self.assertRaises(ValueError):
+            mc.n_cylinders(-0.001)
+
     def test_reproducible_same_seed(self):
         r1 = mc.simulate_phi(0.01, m=3, seed=42)
         r2 = mc.simulate_phi(0.01, m=3, seed=42)
@@ -56,6 +62,8 @@ class TestMonteCarloCore(unittest.TestCase):
             self.assertGreaterEqual(res['x'], 0)
             self.assertLessEqual(res['x'], 2)
             self.assertGreater(res['mean_fragments'], 0.0)
+            self.assertGreaterEqual(res['mean_crossing_rate'], 0.0)
+            self.assertLessEqual(res['mean_crossing_rate'], 1.0)
 
 
 class TestIndependentFragments(unittest.TestCase):
@@ -71,6 +79,7 @@ class TestIndependentFragments(unittest.TestCase):
         res = geo.sample_conductive(c, u, h)
         self.assertFalse(res['conductive'])
         self.assertEqual(res['n_fragments'], 2)
+        self.assertEqual(res['n_crossing'], 1)
         self.assertEqual(res['n_left'], 1)
         self.assertEqual(res['n_right'], 1)
 

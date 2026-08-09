@@ -14,13 +14,18 @@ import numpy as np
 
 import geometry as geo
 
-BASE_SEED = 42          # 各 φ 派生：seed = BASE_SEED + phi_index
+BASE_SEED = 42          # 批次入口派生：BASE_SEED + 100000*phi_index + batch_index
 Z_WILSON = 1.959964     # 95% 正态分位数
+THEORETICAL_CROSSING_RATE = 1.0 - (0.25 + 15.0 / (32.0 * np.pi))
 
 
 def n_cylinders(phi):
     """体积分数 φ → 圆柱数量（四舍五入）。"""
-    return int(round(phi * geo.V_BOX / geo.V_A))
+    value = float(phi) * geo.V_BOX / geo.V_A
+    if value < 0.0:
+        raise ValueError('体积分数不能为负数')
+    # Python round 使用“银行家舍入”；题目要求普通四舍五入。
+    return int(np.floor(value + 0.5))
 
 
 def wilson_ci(x, m, z=Z_WILSON):
@@ -48,12 +53,13 @@ def simulate_phi(phi, m=2000, seed=BASE_SEED):
     rng = np.random.default_rng(seed)
     t0 = time.perf_counter()
     x = 0
-    frag_sum = edges_sum = gjk_sum = 0
+    frag_sum = crossing_sum = edges_sum = gjk_sum = 0
     for _ in range(m):
         c, u, h = geo.generate_cylinders(n_A, rng)
         res = geo.sample_conductive(c, u, h)
         x += int(res['conductive'])
         frag_sum += res['n_fragments']
+        crossing_sum += res['n_crossing']
         edges_sum += res['n_edges']
         gjk_sum += res['n_gjk']
     elapsed = time.perf_counter() - t0
@@ -67,6 +73,8 @@ def simulate_phi(phi, m=2000, seed=BASE_SEED):
         'ci_lower': lo,
         'ci_upper': hi,
         'mean_fragments': frag_sum / m,
+        'mean_crossing': crossing_sum / m,
+        'mean_crossing_rate': crossing_sum / (m * n_A) if n_A else 0.0,
         'mean_edges': edges_sum / m,
         'mean_gjk': gjk_sum / m,
         'elapsed_s': elapsed,

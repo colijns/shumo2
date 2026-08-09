@@ -54,6 +54,29 @@ def generate_cylinders(n, rng):
     return c, u, h
 
 
+def cylinder_projection_halfwidth(u, h, r=R):
+    """完整平端圆柱在 x/y/z 三轴上的精确投影半宽。"""
+    u = np.asarray(u, dtype=float)
+    h = np.asarray(h, dtype=float)
+    return (h[..., None] * np.abs(u)
+            + float(r) * np.sqrt(np.maximum(1.0 - u * u, 0.0)))
+
+
+def axis_crossing_flags(c, u, h, half_l=HALF_L):
+    """中心轴线是否越过基本盒任一边界。"""
+    c = np.asarray(c, dtype=float)
+    u = np.asarray(u, dtype=float)
+    h = np.asarray(h, dtype=float)
+    return np.any(np.abs(c) + h[..., None] * np.abs(u) > half_l, axis=1)
+
+
+def solid_crossing_flags(c, u, h, r=R, half_l=HALF_L):
+    """完整圆柱实体是否越过基本盒任一边界。"""
+    c = np.asarray(c, dtype=float)
+    extent = cylinder_projection_halfwidth(u, h, r)
+    return np.any(np.abs(c) + extent > half_l, axis=1)
+
+
 def _crossing_ts(p1, p2):
     """轴线段 [p1,p2] 与 6 个边界平面的全部交点参数 t（排序去重）。
 
@@ -245,25 +268,30 @@ def sample_conductive(c, u, h, delta=DELTA):
            判连——所有候选必须 GJK 精算（Q4 球-圆柱混合同样依赖 GJK）；
         6. connected(S,T) → conductive。
 
-    返回 dict: {conductive, n_fragments, n_edges, n_left, n_right, n_gjk}。
+    返回 dict: {conductive, n_fragments, n_crossing, n_edges, n_left,
+    n_right, n_gjk}。其中 n_crossing 为截断后产生多于一个片段的原始圆柱数。
     """
     c = np.asarray(c, dtype=float)
     u = np.asarray(u, dtype=float)
     h = np.asarray(h, dtype=float)
     n_cyl = len(c)
     if n_cyl == 0:
-        return {'conductive': False, 'n_fragments': 0, 'n_edges': 0,
+        return {'conductive': False, 'n_fragments': 0, 'n_crossing': 0,
+                'n_edges': 0,
                 'n_left': 0, 'n_right': 0, 'n_gjk': 0}
 
     frag = clip_batch(c, u, h)
     p1s, p2s, cyl_idx = frag['p1s'], frag['p2s'], frag['cyl_idx']
     nf = len(p1s)
+    fragment_counts = np.bincount(cyl_idx, minlength=n_cyl)
+    n_crossing = int(np.count_nonzero(fragment_counts > 1))
 
     dL, dR = electrode_dist(p1s, p2s)
     left = np.nonzero(dL <= delta)[0]
     right = np.nonzero(dR <= delta)[0]
     if len(left) == 0 or len(right) == 0:
-        return {'conductive': False, 'n_fragments': nf, 'n_edges': 0,
+        return {'conductive': False, 'n_fragments': nf,
+                'n_crossing': n_crossing, 'n_edges': 0,
                 'n_left': int(len(left)), 'n_right': int(len(right)), 'n_gjk': 0}
 
     uf = UnionFind(nf + 2)
@@ -295,7 +323,8 @@ def sample_conductive(c, u, h, delta=DELTA):
 
     conductive = uf.connected(s_node, t_node)
     return {'conductive': bool(conductive), 'n_fragments': nf,
-            'n_edges': n_edges, 'n_left': int(len(left)),
+            'n_crossing': n_crossing, 'n_edges': n_edges,
+            'n_left': int(len(left)),
             'n_right': int(len(right)), 'n_gjk': n_gjk}
 
 
