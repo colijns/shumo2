@@ -87,9 +87,6 @@ def main():
                linewidth=1.6, label='轴线理论率 60.15%')
     ax.axhline(solid_theory, color='#d62728', linestyle='--',
                linewidth=1.6, label='实体理论率 60.88%')
-    ax.text(1.5, (axis_theory + solid_theory) / 2 - 0.075,
-            '实体 - 轴线 = 0.73 个百分点\n（半径/端面越界，轴线仍在内）',
-            fontsize=9, color='#333333', ha='center', va='center')
 
     ax.set_ylabel('跨壁圆柱比例（%）')
     ax.set_ylim(58, 62)
