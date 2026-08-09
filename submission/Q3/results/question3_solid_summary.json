@@ -1,0 +1,99 @@
+{
+  "problem": "A题问题3",
+  "method": "完整实体内接/外切多棱柱首次导通上下界",
+  "config": {
+    "target_probability": 0.9,
+    "n_max": 750,
+    "trials": 10000,
+    "n_sides": 32,
+    "radial_error_bound_nm": 0.1451571712893407,
+    "workers": 8,
+    "batch_size": 1,
+    "base_seed": 20260808,
+    "trial_seed_formula": "base_seed + trial_index",
+    "same_source_auto_connection": false
+  },
+  "outer_lower_threshold": {
+    "point": {
+      "n": 613,
+      "x": 9009,
+      "p_hat": 0.9009,
+      "ci_lower": 0.8948888575055803,
+      "ci_upper": 0.906603252595956,
+      "phi_percent_raw": 0.8666083334927445,
+      "phi_percent_rounded": 0.87
+    },
+    "safe": {
+      "n": 616,
+      "x": 9063,
+      "p_hat": 0.9063,
+      "ci_lower": 0.9004313985956658,
+      "ci_upper": 0.9118565643234018,
+      "phi_percent_raw": 0.8708494835750906,
+      "phi_percent_rounded": 0.87
+    },
+    "bootstrap": {
+      "n_lower": 610.0,
+      "n_upper": 616.0,
+      "phi_lower_percent": 0.8623671834103982,
+      "phi_upper_percent": 0.8708494835750906,
+      "width_percentage_point": 0.008482300164692425
+    },
+    "n_never": 11
+  },
+  "inner_upper_threshold": {
+    "point": {
+      "n": 616,
+      "x": 9005,
+      "p_hat": 0.9005,
+      "ci_lower": 0.8944785165710384,
+      "ci_upper": 0.9062139007291992,
+      "phi_percent_raw": 0.8708494835750906,
+      "phi_percent_rounded": 0.87
+    },
+    "safe": {
+      "n": 619,
+      "x": 9059,
+      "p_hat": 0.9059,
+      "ci_lower": 0.9000206476199106,
+      "ci_upper": 0.9114676224978583,
+      "phi_percent_raw": 0.8750906336574369,
+      "phi_percent_rounded": 0.88
+    },
+    "bootstrap": {
+      "n_lower": 613.0,
+      "n_upper": 620.0,
+      "phi_lower_percent": 0.8666083334927445,
+      "phi_upper_percent": 0.8765043503515523,
+      "width_percentage_point": 0.00989601685880781
+    },
+    "n_never": 11
+  },
+  "empirical_geometry_bracket_n": [
+    613,
+    616
+  ],
+  "empirical_geometry_bracket_phi_percent": [
+    0.8666083334927445,
+    0.8708494835750906
+  ],
+  "same_value_after_two_decimal_rounding": true,
+  "conservative_point_n": 616,
+  "conservative_point_phi_percent_raw": 0.8708494835750906,
+  "conservative_95_n": 619,
+  "conservative_95_phi_percent_raw": 0.8750906336574369,
+  "conservative_95_phi_percent_ceiling_2": 0.88,
+  "bootstrap_precision_target_percentage_point": 0.01,
+  "bootstrap_precision_met": true,
+  "diagnostics": {
+    "m": 10000,
+    "bracket_violations": 0,
+    "uncertain_samples": 303,
+    "outer_gjk": 3387531,
+    "inner_gjk": 3398350,
+    "outer_crossing": 3011987,
+    "inner_crossing": 3023975
+  },
+  "wall_elapsed_s": 3406.9087787,
+  "formal_result_ready": true
+}

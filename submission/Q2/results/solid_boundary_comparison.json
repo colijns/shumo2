@@ -1,0 +1,175 @@
+{
+  "experiment": "Q2 solid-cylinder boundary comparison",
+  "interpretation": {
+    "axis": "原轴线截断近似，仅作历史基线，不属于实体上下界",
+    "inner": "内接正多棱柱，导通概率下界",
+    "outer": "外切正多棱柱，导通概率上界",
+    "same_random_samples": true,
+    "same_source_fragments_auto_connected": false
+  },
+  "config": {
+    "phis": [
+      0.005,
+      0.006,
+      0.007,
+      0.01
+    ],
+    "trials_per_phi": 2000,
+    "n_sides": 64,
+    "radial_error_bound_nm": 0.036179894111776356,
+    "workers": 16,
+    "base_seed": 20260808,
+    "seed_formula": "base_seed + 100000*phi_index + trial_index"
+  },
+  "rows": [
+    {
+      "phi": 0.005,
+      "n_A": 354,
+      "m": 2000,
+      "axis": {
+        "x": 146,
+        "p_hat": 0.073,
+        "ci_lower": 0.06239935941592901,
+        "ci_upper": 0.08523779898803886
+      },
+      "inner": {
+        "x": 144,
+        "p_hat": 0.072,
+        "ci_lower": 0.061473133240378446,
+        "ci_upper": 0.0841678592582123
+      },
+      "outer": {
+        "x": 144,
+        "p_hat": 0.072,
+        "ci_lower": 0.061473133240378446,
+        "ci_upper": 0.0841678592582123
+      },
+      "mean_axis_s": 0.3693252728999993,
+      "mean_inner_s": 2.766168301299999,
+      "mean_outer_s": 2.770060955850001,
+      "mean_axis_crossing": 212.9025,
+      "mean_inner_crossing": 215.4275,
+      "mean_outer_crossing": 215.43,
+      "mean_inner_fragments": 627.46,
+      "mean_outer_fragments": 627.469,
+      "mean_inner_gjk": 166.391,
+      "mean_outer_gjk": 166.5975,
+      "bracket_violations": 0,
+      "axis_vs_inner_disagreements": 6,
+      "axis_vs_outer_disagreements": 6,
+      "inner_outer_uncertain_samples": 0
+    },
+    {
+      "phi": 0.006,
+      "n_A": 424,
+      "m": 2000,
+      "axis": {
+        "x": 449,
+        "p_hat": 0.2245,
+        "ci_lower": 0.20675148391714945,
+        "ci_upper": 0.24330480915145275
+      },
+      "inner": {
+        "x": 444,
+        "p_hat": 0.222,
+        "ci_lower": 0.20432885258986955,
+        "ci_upper": 0.24073702571528985
+      },
+      "outer": {
+        "x": 446,
+        "p_hat": 0.223,
+        "ci_lower": 0.205297791750325,
+        "ci_upper": 0.24176425246021152
+      },
+      "mean_axis_s": 0.5340022749999982,
+      "mean_inner_s": 3.4727539820499995,
+      "mean_outer_s": 3.472105055149998,
+      "mean_axis_crossing": 254.9535,
+      "mean_inner_crossing": 258.08,
+      "mean_outer_crossing": 258.0835,
+      "mean_inner_fragments": 751.2065,
+      "mean_outer_fragments": 751.2165,
+      "mean_inner_gjk": 238.837,
+      "mean_outer_gjk": 239.1385,
+      "bracket_violations": 0,
+      "axis_vs_inner_disagreements": 17,
+      "axis_vs_outer_disagreements": 19,
+      "inner_outer_uncertain_samples": 2
+    },
+    {
+      "phi": 0.007,
+      "n_A": 495,
+      "m": 2000,
+      "axis": {
+        "x": 972,
+        "p_hat": 0.486,
+        "ci_lower": 0.4641433561492817,
+        "ci_upper": 0.5079103211754386
+      },
+      "inner": {
+        "x": 964,
+        "p_hat": 0.482,
+        "ci_lower": 0.46015662086476167,
+        "ci_upper": 0.50391239283845
+      },
+      "outer": {
+        "x": 967,
+        "p_hat": 0.4835,
+        "ci_lower": 0.46165148246334714,
+        "ci_upper": 0.5054117800979303
+      },
+      "mean_axis_s": 0.9416808624499974,
+      "mean_inner_s": 5.290114318950002,
+      "mean_outer_s": 5.284174700599999,
+      "mean_axis_crossing": 297.4105,
+      "mean_inner_crossing": 300.9635,
+      "mean_outer_crossing": 300.968,
+      "mean_inner_fragments": 876.8625,
+      "mean_outer_fragments": 876.876,
+      "mean_inner_gjk": 324.4545,
+      "mean_outer_gjk": 324.8585,
+      "bracket_violations": 0,
+      "axis_vs_inner_disagreements": 30,
+      "axis_vs_outer_disagreements": 33,
+      "inner_outer_uncertain_samples": 3
+    },
+    {
+      "phi": 0.01,
+      "n_A": 707,
+      "m": 2000,
+      "axis": {
+        "x": 1989,
+        "p_hat": 0.9945,
+        "ci_lower": 0.9901779372047981,
+        "ci_upper": 0.9969261030041899
+      },
+      "inner": {
+        "x": 1990,
+        "p_hat": 0.995,
+        "ci_lower": 0.9908203040074873,
+        "ci_upper": 0.9972818191541892
+      },
+      "outer": {
+        "x": 1990,
+        "p_hat": 0.995,
+        "ci_lower": 0.9908203040074873,
+        "ci_upper": 0.9972818191541892
+      },
+      "mean_axis_s": 1.4117943148499976,
+      "mean_inner_s": 6.232080047949995,
+      "mean_outer_s": 6.228316253399998,
+      "mean_axis_crossing": 424.3945,
+      "mean_inner_crossing": 429.577,
+      "mean_outer_crossing": 429.5825,
+      "mean_inner_fragments": 1252.0825,
+      "mean_outer_fragments": 1252.103,
+      "mean_inner_gjk": 663.7095,
+      "mean_outer_gjk": 664.5075,
+      "bracket_violations": 0,
+      "axis_vs_inner_disagreements": 3,
+      "axis_vs_outer_disagreements": 3,
+      "inner_outer_uncertain_samples": 0
+    }
+  ],
+  "wall_elapsed_s": 2307.2366406
+}

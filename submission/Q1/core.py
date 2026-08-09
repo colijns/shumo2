@@ -1,13 +1,10 @@
 # 本程序及代码是在AI工具辅助下完成的
 # AI工具名称：DeepSeek‑V4‑Flash，版本 / 型号：DeepSeek‑V4‑Flash‑0731，开发机构 / 公司：深度求索（DeepSeek），版本发布日期：2026‑07‑31
 
-import os
-
 import numpy as np
 
 R = 30.0          # 介质 A 半径 (nm)
-# 电接触临界距离 (nm)；可用环境变量 SHUMO_DELTA 覆盖（敏感性扫描用），默认 1.8
-DELTA = float(os.environ.get("SHUMO_DELTA", "1.8"))
+DELTA = 1.8       # 电接触临界距离 (nm)
 L = 10000.0       # 立方体边长 (nm)
 HALF_L = 5000.0   # 立方体半边长 (nm)
 

@@ -1,0 +1,10 @@
+Q3实体首次导通: N_max=750, M=10000, sides=32, workers=8, target=0.90
+
+===== Q3实体上下界阶段结果 =====
+本轮外切经验临界（几何下界）: 613
+本轮内接经验临界（几何上界）: 616
+本轮经验临界体积分数的几何夹逼: [0.866608%, 0.870849%]
+上下界违例: 0, 样本级上下界有间隙: 303/10000
+Bootstrap精度达标: True, 正式结果就绪: True
+结果: D:\code_warehouse\Projects\shumo2\Q3\results\question3_solid_summary.json
+曲线: D:\code_warehouse\Projects\shumo2\Q3\results\question3_solid_curve.csv
