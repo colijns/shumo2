@@ -1,13 +1,6 @@
-"""问题2：轴线截断与完整实体裁剪的同样本对照试验。
+# 本程序及代码是在AI工具辅助下完成的
+# AI工具名称：DeepSeek‑V4‑Flash，版本 / 型号：DeepSeek‑V4‑Flash‑0731，开发机构 / 公司：深度求索（DeepSeek），版本发布日期：2026‑07‑31
 
-对每个随机微结构同时计算：
-1. 现有轴线截断模型；
-2. 圆柱内接正多棱柱（真实圆柱导通事件的下界）；
-3. 圆柱外切正多棱柱（真实圆柱导通事件的上界）。
-
-内外多棱柱均先按周期边界平移，再与基本盒精确裁剪。二者使用完全相同的
-随机样本，因此差异来自边界几何，而不是蒙特卡洛抽样波动。
-"""
 
 from concurrent.futures import ProcessPoolExecutor
 import json
@@ -21,9 +14,9 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-import geometry as axis_geometry  # noqa: E402
-import monte_carlo as mc  # noqa: E402
-import solid_geometry as solid_geometry  # noqa: E402
+import geometry as axis_geometry
+import monte_carlo as mc
+import solid_geometry as solid_geometry
 
 
 PHIS = tuple(float(value) for value in os.environ.get(
@@ -52,7 +45,6 @@ def _run_config():
 
 
 def _atomic_json_dump(path, payload):
-    """先写临时文件再原子替换，避免中断留下半个 JSON。"""
     os.makedirs(os.path.dirname(path), exist_ok=True)
     temporary = path + '.tmp'
     with open(temporary, 'w', encoding='utf-8') as handle:

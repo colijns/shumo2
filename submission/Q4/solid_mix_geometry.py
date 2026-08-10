@@ -1,16 +1,6 @@
-"""Q4严格混合实体几何：A圆柱与B球体的内接/外切多面体夹逼。
+# 本程序及代码是在AI工具辅助下完成的
+# AI工具名称：DeepSeek‑V4‑Flash，版本 / 型号：DeepSeek‑V4‑Flash‑0731，开发机构 / 公司：深度求索（DeepSeek），版本发布日期：2026‑07‑31
 
-本模块不替换原 ``geometry_mix`` 的快速搜索核，而是提供正式复核核：
-
-* A：复用Q3的内接/外切正多棱柱及周期实体裁剪；
-* B：用内接/外切二十面体细分多面体逼近球，并严格裁剪到基本盒；
-* A-A、A-B、B-B：统一用AABB预筛和凸体GJK距离建边；
-* 同源周期片段只记录来源，不自动电连接；
-* 候选使用完整介质序列前缀，保持样本级单调性。
-
-因此同一随机样本上应满足 ``Y_inner <= Y_outer``。当 ``N_B=0`` 时，
-本模块与Q3的实体首次导通核使用完全相同的A片段生成和接触判据。
-"""
 
 from dataclasses import dataclass
 from functools import lru_cache
@@ -29,9 +19,9 @@ for path in (Q2_DIR, Q1_DIR):
     if path not in sys.path:
         sys.path.insert(0, path)
 
-import geometry as axis_geometry  # noqa: E402
-import solid_geometry  # noqa: E402
-from core import UnionFind  # noqa: E402
+import geometry as axis_geometry
+import solid_geometry
+from core import UnionFind
 
 
 R_B = 200.0
@@ -43,7 +33,6 @@ TOL = 1e-8
 
 @dataclass
 class MixedFragment:
-    """统一凸片段；kind=0为A，kind=1为B。"""
 
     kind: int
     source: int
@@ -61,7 +50,6 @@ class MixedFragment:
 
 
 def _base_icosahedron():
-    """单位外接球上的正二十面体顶点和三角面。"""
     phi = (1.0 + np.sqrt(5.0)) / 2.0
     vertices = np.asarray([
         (-1, phi, 0), (1, phi, 0), (-1, -phi, 0), (1, -phi, 0),
@@ -80,7 +68,6 @@ def _base_icosahedron():
 
 @lru_cache(maxsize=None)
 def unit_icosphere(subdivisions=2):
-    """返回单位球上的细分二十面体网格（顶点、三角面、最小面内半径）。"""
     subdivisions = int(subdivisions)
     if subdivisions < 0 or subdivisions > 4:
         raise ValueError('subdivisions必须位于0到4之间')
@@ -120,7 +107,6 @@ def unit_icosphere(subdivisions=2):
 
 
 def ball_polyhedron_error(radius=R_B, subdivisions=2):
-    """球与内/外接多面体的最大单侧径向误差上界。"""
     _, _, inradius = unit_icosphere(subdivisions)
     inner_error = float(radius) * (1.0 - inradius)
     outer_error = float(radius) * (1.0 / inradius - 1.0)
@@ -129,12 +115,11 @@ def ball_polyhedron_error(radius=R_B, subdivisions=2):
 
 def ball_polyhedron_faces(center, radius=R_B, subdivisions=2,
                           mode='inscribed'):
-    """生成球的内接或外切凸多面体三角面。"""
     unit_vertices, face_indices, min_face_radius = unit_icosphere(subdivisions)
     if mode == 'inscribed':
         scale = float(radius)
     elif mode == 'circumscribed':
-        # 将所有顶点统一放大，使每个支撑面到球心的距离都至少为radius。
+
         scale = float(radius) / min_face_radius
     else:
         raise ValueError("mode必须为'inscribed'或'circumscribed'")
@@ -145,7 +130,6 @@ def ball_polyhedron_faces(center, radius=R_B, subdivisions=2,
 
 def wrap_ball_fragments(centers, radius=R_B, subdivisions=2,
                         mode='inscribed'):
-    """球体多面体的周期镜像与基本盒实体裁剪。"""
     centers = np.asarray(centers, dtype=float).reshape(-1, 3)
     unit_vertices, face_indices, min_face_radius = unit_icosphere(subdivisions)
     if mode == 'inscribed':
@@ -157,8 +141,8 @@ def wrap_ball_fragments(centers, radius=R_B, subdivisions=2,
     relative_vertices = scale * unit_vertices
     fragments = []
     for source, center in enumerate(centers):
-        # 绝大多数球完全位于盒内，只生成顶点；仅跨壁时构造320个三角面，
-        # 避免为每个内部球重复分配大量小数组。
+
+
         base_vertices = center + relative_vertices
         base_lo = base_vertices.min(axis=0)
         base_hi = base_vertices.max(axis=0)
@@ -198,7 +182,6 @@ def wrap_ball_fragments(centers, radius=R_B, subdivisions=2,
 
 
 def wrap_cylinder_fragments(c, u, h, n_sides=32, mode='inscribed'):
-    """复用Q3实体圆柱片段，并添加混合介质类型标签。"""
     raw = solid_geometry.wrap_prism_fragments(
         c, u, h, n_sides=n_sides, mode=mode)
     return [MixedFragment(
@@ -212,12 +195,10 @@ def wrap_cylinder_fragments(c, u, h, n_sides=32, mode='inscribed'):
 
 
 def _candidate_pairs(fragments, delta=DELTA):
-    """安全AABB扫线候选；返回全局片段编号对。"""
     return solid_geometry.aabb_candidate_pairs(fragments, delta)
 
 
 def _point_finite_cylinder_distance(p1, p2, point, radius):
-    """点到有限平端实心圆柱的精确距离。"""
     axis = np.asarray(p2) - np.asarray(p1)
     length = float(np.linalg.norm(axis))
     unit = axis / max(length, 1e-30)
@@ -231,7 +212,6 @@ def _point_finite_cylinder_distance(p1, p2, point, radius):
 
 
 def _segment_distance_params(p1, p2, q1, q2):
-    """两线段最短距离及最近点参数，参数位于[0,1]。"""
     a1 = np.asarray(p1, dtype=float)[None, :]
     b1 = np.asarray(p2, dtype=float)[None, :]
     a2 = np.asarray(q1, dtype=float)[None, :]
@@ -274,7 +254,6 @@ def _contained_radius(fragment, cyl_sides, ball_subdivisions, mode):
 def _contact_edges(fragments, cyl_sides=32, ball_subdivisions=2,
                    mode='inscribed', delta=DELTA,
                    use_analytic_bounds=True):
-    """AABB预筛后用安全解析界缩小临界带，其余统一调用凸体GJK。"""
     edges = []
     candidates = _candidate_pairs(fragments, delta)
     n_gjk = 0
@@ -282,7 +261,7 @@ def _contact_edges(fragments, cyl_sides=32, ball_subdivisions=2,
         first, second = fragments[i], fragments[j]
         accepted = False
         rejected = False
-        # A-A轴线距离减外接半径是安全下界，可排除长AABB造成的大量伪候选。
+
         if first.kind == second.kind == 0:
             axis_distance, first_t, second_t = _segment_distance_params(
                 first.axis_p1, first.axis_p2,
@@ -297,7 +276,7 @@ def _contact_edges(fragments, cyl_sides=32, ball_subdivisions=2,
                 contained = _contained_radius(
                     first, cyl_sides, ball_subdivisions, mode)
                 accepted = axis_distance <= 2.0 * contained + delta + TOL
-        # 未裁剪B-B：外接半径可安全拒绝，内含球可安全接受；仅窄带走GJK。
+
         elif (use_analytic_bounds and first.kind == second.kind == 1
               and not first.clipped and not second.clipped):
             center_distance = float(np.linalg.norm(first.axis_p1 - second.axis_p1))
@@ -308,7 +287,7 @@ def _contact_edges(fragments, cyl_sides=32, ball_subdivisions=2,
                 contained = _contained_radius(
                     first, cyl_sides, ball_subdivisions, mode)
                 accepted = center_distance <= 2.0 * contained + delta + TOL
-        # 未裁剪A-B：以同轴内含/外包圆柱和B半径给安全接受/拒绝界。
+
         elif (use_analytic_bounds and first.kind != second.kind
               and not first.clipped and not second.clipped):
             a = first if first.kind == 0 else second
@@ -340,7 +319,6 @@ def _contact_edges(fragments, cyl_sides=32, ball_subdivisions=2,
 
 def prepare_trial(c, u, h, ball_centers, n_a_max=None, n_b_max=None,
                   cyl_sides=32, ball_subdivisions=2, mode='inscribed'):
-    """准备一次严格实体试验的完整前缀图。"""
     n_a_max = len(c) if n_a_max is None else int(n_a_max)
     n_b_max = len(ball_centers) if n_b_max is None else int(n_b_max)
     a_fragments = wrap_cylinder_fragments(
@@ -376,7 +354,6 @@ def prepare_trial(c, u, h, ball_centers, n_a_max=None, n_b_max=None,
 
 
 def sample_prefix(prepared, n_a, n_b):
-    """判断完整介质前缀 ``(n_a,n_b)`` 是否左右导通。"""
     kind = prepared['kind']
     source = prepared['source']
     active = ((kind == 0) & (source < int(n_a))) \
@@ -411,7 +388,6 @@ def sample_prefix(prepared, n_a, n_b):
 
 def prepare_paired(c, u, h, ball_centers, n_a_max=None, n_b_max=None,
                    cyl_sides=32, ball_subdivisions=2):
-    """同一随机微构体的内接/外切成对准备。"""
     inner = prepare_trial(
         c, u, h, ball_centers, n_a_max, n_b_max,
         cyl_sides, ball_subdivisions, mode='inscribed')
@@ -422,7 +398,6 @@ def prepare_paired(c, u, h, ball_centers, n_a_max=None, n_b_max=None,
 
 
 def paired_prefix(inner, outer, n_a, n_b):
-    """返回(inner, outer)，并检查几何夹逼不被违反。"""
     y_inner = sample_prefix(inner, n_a, n_b)
     y_outer = sample_prefix(outer, n_a, n_b)
     if y_inner and not y_outer:

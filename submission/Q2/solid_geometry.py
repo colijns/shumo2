@@ -1,15 +1,5 @@
 # 本程序及代码是在AI工具辅助下完成的
-"""问题2完整圆柱实体的周期裁剪实验内核。
-
-圆柱横截面分别用正多边形内接/外切逼近：
-
-- ``mode='inscribed'``：多棱柱包含于真实圆柱，导通概率给出下界；
-- ``mode='circumscribed'``：多棱柱包含真实圆柱，导通概率给出上界。
-
-每个平移副本与基本盒逐面裁剪，得到实际位于盒内的凸多面体片段；同源片段
-不自动电连接。边数增加时上下界向真实圆柱收敛。64边时单侧径向误差约
-``r*(sec(pi/64)-1)=0.0362 nm``。
-"""
+# AI工具名称：DeepSeek‑V4‑Flash，版本 / 型号：DeepSeek‑V4‑Flash‑0731，开发机构 / 公司：深度求索（DeepSeek），版本发布日期：2026‑07‑31
 
 from dataclasses import dataclass
 from itertools import product
@@ -25,8 +15,8 @@ for path in (HERE, Q1_DIR):
     if path not in sys.path:
         sys.path.insert(0, path)
 
-import geometry as axis_geo  # noqa: E402
-from core import GJKError, UnionFind, _closest_point_to_origin  # noqa: E402
+import geometry as axis_geo
+from core import GJKError, UnionFind, _closest_point_to_origin
 
 
 TOL = 1e-9
@@ -48,7 +38,6 @@ class PolyFragment:
 
 
 def polygon_radial_radius(radius, n_sides, mode):
-    """正多边形顶点半径；内接为r，外切为r*sec(pi/K)。"""
     n_sides = int(n_sides)
     if n_sides < 8:
         raise ValueError('横截面边数至少为8')
@@ -60,7 +49,6 @@ def polygon_radial_radius(radius, n_sides, mode):
 
 
 def radial_error_bound(radius, n_sides):
-    """真实圆与内/外接正多边形之间的最大单侧径向误差。"""
     angle = np.pi / int(n_sides)
     inner = float(radius) * (1.0 - np.cos(angle))
     outer = float(radius) * (1.0 / np.cos(angle) - 1.0)
@@ -80,7 +68,6 @@ def _radial_basis(axis):
 
 def prism_faces(center, axis, half, radius=axis_geo.R, n_sides=64,
                 mode='inscribed'):
-    """生成有限平端正多棱柱的有序面多边形。"""
     center = np.asarray(center, dtype=float)
     axis = np.asarray(axis, dtype=float)
     axis = axis / np.linalg.norm(axis)
@@ -100,7 +87,6 @@ def prism_faces(center, axis, half, radius=axis_geo.R, n_sides=64,
 
 
 def _clip_polygon(poly, axis, bound, keep_leq, tol=TOL):
-    """用一个轴对齐半空间裁剪单个有序凸多边形。"""
     if len(poly) < 3:
         return None, []
 
@@ -143,7 +129,6 @@ def _unique_points(points, tol=1e-7):
 
 
 def _sort_cap(points, axis):
-    """把同一轴对齐平面上的交点按极角排序，形成新的裁剪面。"""
     points = _unique_points(points)
     if len(points) < 3:
         return None
@@ -155,7 +140,6 @@ def _sort_cap(points, axis):
 
 
 def clip_faces_to_box(faces, half_l=axis_geo.HALF_L):
-    """将凸多面体依次与六个盒半空间求交。"""
     clipped = [np.asarray(face, dtype=float) for face in faces]
     for axis in range(3):
         for bound, keep_leq in ((-half_l, False), (half_l, True)):
@@ -195,7 +179,6 @@ def clip_faces_to_box(faces, half_l=axis_geo.HALF_L):
 
 def wrap_prism_fragments(c, u, h, radius=axis_geo.R, n_sides=64,
                          mode='inscribed'):
-    """完整多棱柱周期平移后与基本盒求交，返回盒内凸片段。"""
     c = np.asarray(c, dtype=float)
     u = np.asarray(u, dtype=float)
     h = np.asarray(h, dtype=float)
@@ -203,7 +186,7 @@ def wrap_prism_fragments(c, u, h, radius=axis_geo.R, n_sides=64,
     for source in range(len(c)):
         base_faces = prism_faces(
             c[source], u[source], h[source], radius, n_sides, mode)
-        # 前两个面正好给出上下底面的全部2K个唯一顶点，避免通用去重开销。
+
         base_vertices = np.vstack([base_faces[0], base_faces[1]])
         base_lo = base_vertices.min(axis=0)
         base_hi = base_vertices.max(axis=0)
@@ -243,7 +226,6 @@ def wrap_prism_fragments(c, u, h, radius=axis_geo.R, n_sides=64,
 
 
 def gjk_polytope_distance(shape1, shape2, tol=1e-10, max_iter=80):
-    """两个凸多面体之间的GJK最短距离。"""
     def support(direction):
         return shape1.support(direction) - shape2.support(-direction)
 
@@ -291,7 +273,6 @@ def aabb_candidate_pairs(fragments, delta=axis_geo.DELTA):
 
 def sample_conductive_solid(c, u, h, delta=axis_geo.DELTA, n_sides=64,
                             mode='inscribed'):
-    """完整圆柱实体周期裁剪后的单样本导通判定。"""
     fragments = wrap_prism_fragments(c, u, h, n_sides=n_sides, mode=mode)
     n = len(fragments)
     if n == 0:

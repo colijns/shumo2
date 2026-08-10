@@ -1,13 +1,5 @@
-# 本绘图程序在AI工具辅助下完成
-# AI工具名称：DeepSeek-V4-Flash，版本 / 型号：DeepSeek-V4-Flash-0731，开发机构 / 公司：深度求索（DeepSeek），版本发布日期：2026-07-31
-
-"""问题3 配图：实体夹逼首次导通概率曲线（外切/内接多棱柱）。
-
-数据来源：Q3/results/question3_solid_curve.csv（逐根数导通概率点估计与
-95% Wilson 区间）+ question3_solid_summary.json（临界根数与体积分数）。
-输出：Q3/figures/问题3_实体夹逼_导通概率_vs_介质数量.png + .pdf
-（300dpi，双格式）。
-"""
+# 本程序及代码是在AI工具辅助下完成的
+# AI工具名称：DeepSeek‑V4‑Flash，版本 / 型号：DeepSeek‑V4‑Flash‑0731，开发机构 / 公司：深度求索（DeepSeek），版本发布日期：2026‑07‑31
 
 import csv
 import json
@@ -64,8 +56,8 @@ def main():
     outer_point = summary['outer_lower_threshold']['point']['n']
     inner_point = summary['inner_upper_threshold']['point']['n']
 
-    # 双面板设计：上主图全高走势（外切/内接差异在全高坐标不足 1%，
-    # 两线近似重合为物理事实），下差值面板放大 ΔP=内接−外切 显性化夹逼界
+
+
     fig = plt.figure(figsize=(8, 6.4))
     gs = fig.add_gridspec(2, 1, height_ratios=(3, 1), hspace=0.14,
                           left=0.105, right=0.97, top=0.97, bottom=0.11)
@@ -97,9 +89,9 @@ def main():
     ax.set_ylim(-0.02, 1.05)
     ax.grid(True, linestyle='--', alpha=0.5)
     ax.legend(loc='lower right', fontsize=9)
-    ax.tick_params(labelbottom=False)   # x 刻度由差值面板统一显示
+    ax.tick_params(labelbottom=False)
 
-    # 上横轴：体积分数（pp）
+
     ax_top = ax.twiny()
     ax_top.set_xlim(ax.get_xlim())
     ticks = np.linspace(n.min(), n.max(), 7)
@@ -107,7 +99,7 @@ def main():
     ax_top.set_xticklabels([f'{value:.3f}' for value in np.interp(ticks, n, phi)])
     ax_top.set_xlabel('体积分数 φ（%，精确到百分号下两位以内）')
 
-    # 差值面板：ΔP = 内接点估计 − 外切点估计（夹逼两界的采样差异）
+
     axd = fig.add_subplot(gs[1], sharex=ax)
     delta = inner_p - outer_p
     axd.plot(n, delta, color='#333333', linewidth=1.4)

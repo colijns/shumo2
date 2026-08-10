@@ -1,5 +1,5 @@
 # 本程序及代码是在AI工具辅助下完成的
-"""问题4混合介质蒙特卡洛与成本计算。"""
+# AI工具名称：DeepSeek‑V4‑Flash，版本 / 型号：DeepSeek‑V4‑Flash‑0731，开发机构 / 公司：深度求索（DeepSeek），版本发布日期：2026‑07‑31
 
 import importlib.util
 import os
@@ -7,8 +7,6 @@ import time
 
 import numpy as np
 
-# 显式加载本目录 geometry：与 Q2 的 geometry/monte_carlo 同名，普通
-# import 可能命中另一目录版本，全量测试聚合时出错。
 _SPEC = importlib.util.spec_from_file_location(
     'q4_geometry', os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 'geometry.py'))
@@ -39,7 +37,6 @@ def volume_fractions(n_a, n_b):
 
 
 def simulate_pair(n_a, n_b, m=20, seed=20260808):
-    """对一个整数配比运行m次独立试验。"""
     n_a, n_b, m = int(n_a), int(n_b), int(m)
     rng = np.random.default_rng(seed)
     x = 0
@@ -67,7 +64,6 @@ def simulate_pair(n_a, n_b, m=20, seed=20260808):
 
 
 def common_random_trial(pairs, seed):
-    """用同一组A、B随机序列的前缀比较多个候选方案。"""
     pairs = [(int(n_a), int(n_b)) for n_a, n_b in pairs]
     if not pairs:
         return []
@@ -84,7 +80,6 @@ def common_random_trial(pairs, seed):
 
 
 def aggregate_common_trials(pairs, trial_results):
-    """汇总共同随机数试验，并保留每个候选的Wilson区间。"""
     pairs = [(int(n_a), int(n_b)) for n_a, n_b in pairs]
     m = len(trial_results)
     if m <= 0:
@@ -110,12 +105,10 @@ def aggregate_common_trials(pairs, trial_results):
 
 
 def equal_cost_frontier(reference_n_a, a_counts):
-    """构造不超过纯A参考成本的离散替代方案。"""
     return cost_frontier(total_cost(reference_n_a, 0), a_counts)
 
 
 def cost_frontier(budget, a_counts):
-    """在给定成本上限下，为每个A数量填入尽可能多的B。"""
     budget = float(budget)
     if budget < 0.0:
         raise ValueError('成本上限不能为负数')

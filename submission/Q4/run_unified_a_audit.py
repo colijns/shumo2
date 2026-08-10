@@ -1,14 +1,6 @@
-"""Q4纯A退化情形的严格统一复核。
+# 本程序及代码是在AI工具辅助下完成的
+# AI工具名称：DeepSeek‑V4‑Flash，版本 / 型号：DeepSeek‑V4‑Flash‑0731，开发机构 / 公司：深度求索（DeepSeek），版本发布日期：2026‑07‑31
 
-Q4在 ``N_B=0`` 时必须退化为Q3。本程序直接复用Q3的实体圆柱内接/外切
-多棱柱首次导通核，分别给出真实导通概率的下、上界：
-
-* 内接模型导通且Wilson下限达到90%：严格可靠可行；
-* 外切模型Wilson上限仍低于90%：严格可靠不足；
-* 其余情形：当前样本和几何夹逼下尚不能判定。
-
-输出只负责统一Q3/Q4的纯A基准，不把含B的近似混合点冒充严格结论。
-"""
 
 import argparse
 import csv
@@ -27,9 +19,9 @@ for path in (os.path.join(ROOT, 'Q3'), os.path.join(ROOT, 'Q2')):
     if path not in sys.path:
         sys.path.insert(0, path)
 
-import geometry as axis_geometry  # noqa: E402
-import solid_first_passage as solid_fp  # noqa: E402
-from monte_carlo import wilson_ci  # noqa: E402
+import geometry as axis_geometry
+import solid_first_passage as solid_fp
+from monte_carlo import wilson_ci
 
 
 TARGET = 0.90
@@ -41,7 +33,6 @@ CURVE = os.path.join(RESULT_DIR, 'question4_unified_a_curve.csv')
 
 
 def empirical_curve(contacts, n_max):
-    """首次导通样本转为逐N的经验概率和Wilson区间。"""
     m = len(contacts)
     if m == 0:
         raise ValueError('contacts不能为空')
@@ -66,7 +57,6 @@ def first_at(values, predicate):
 
 
 def classify_at(n, outer_curve, inner_curve, target=TARGET):
-    """按实体上下界给一个纯A数量做严格三分类。"""
     if n < 1 or n > len(outer_curve['n']):
         raise ValueError('n超出曲线范围')
     i = n - 1
@@ -121,8 +111,7 @@ def _save_checkpoint(config, rows):
 
 
 def run_trials(n_max, trials, n_sides, base_seed, workers, resume=True):
-    """确定性trial种子+分批落盘；中断后可从检查点续跑。"""
-    # trials不属于几何配置，因此M=100的检查点可以继续扩展到M=10000。
+
     config = {'n_max': n_max, 'n_sides': n_sides,
               'base_seed': base_seed}
     rows = _load_checkpoint(config, resume)

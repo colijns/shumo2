@@ -1,5 +1,5 @@
 # 本程序及代码是在AI工具辅助下完成的
-"""问题4共同随机数精筛：比较低成本边界上的代表性A/B配比。"""
+# AI工具名称：DeepSeek‑V4‑Flash，版本 / 型号：DeepSeek‑V4‑Flash‑0731，开发机构 / 公司：深度求索（DeepSeek），版本发布日期：2026‑07‑31
 
 import csv
 from concurrent.futures import ProcessPoolExecutor
@@ -10,7 +10,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import monte_carlo as mc  # noqa: E402
+import monte_carlo as mc
 
 
 TRIALS = int(os.environ.get('SHUMO_Q4_REFINE_TRIALS', '20'))

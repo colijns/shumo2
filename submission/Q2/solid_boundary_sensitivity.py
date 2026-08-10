@@ -1,13 +1,5 @@
 # 本程序及代码是在AI工具辅助下完成的
-"""问题2完整圆柱实体跨壁敏感性诊断。
-
-正式内核按中心轴线与盒面交点切段。本程序不改变导通算法，只比较：
-1. 中心轴线发生跨壁；
-2. 完整平端圆柱实体发生跨壁。
-
-二者之差是“轴线仍在盒内，但30 nm半径已越界”的边界薄层情形，可用于判断
-是否值得进一步实现圆柱实体与基本盒的精确凸交片段。
-"""
+# AI工具名称：DeepSeek‑V4‑Flash，版本 / 型号：DeepSeek‑V4‑Flash‑0731，开发机构 / 公司：深度求索（DeepSeek），版本发布日期：2026‑07‑31
 
 import json
 import os
@@ -18,7 +10,7 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import geometry as geo  # noqa: E402
+import geometry as geo
 
 
 N_SAMPLES = int(os.environ.get('SHUMO_Q2_SOLID_SAMPLES', '1000000'))

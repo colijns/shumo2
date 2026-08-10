@@ -1,19 +1,6 @@
-# 本绘图程序在AI工具辅助下完成
-# AI工具名称：DeepSeek-V4-Flash（Claude Code）
-# 版本：v4-flash（2026-08 使用）
-# 开发机构：杭州深度求索人工智能基础技术研究有限公司
-# 使用日期：2026-08-09
-# 人工修改记录：见 docs/appendix/interaction_logs/edit_trace.md
+# 本程序及代码是在AI工具辅助下完成的
+# AI工具名称：DeepSeek‑V4‑Flash，版本 / 型号：DeepSeek‑V4‑Flash‑0731，开发机构 / 公司：深度求索（DeepSeek），版本发布日期：2026‑07‑31
 
-"""问题4 论文配图：独立种子复算候选的导通概率与 95% Wilson 区间（png+pdf 双格式）。
-
-图3：读取 Q4/results/question4_verify.csv（独立种子 M=4000 复算），对每个候选
-(N_A, N_B) 绘制 95% Wilson 置信区间横条 + 点估计，叠加 0.90 目标线，按判定着色
-（可靠可行=绿 / 跨线=蓝）。
-
-输出：Q4/figures/问题4_独立复算置信区间.png + .pdf（300dpi，双格式），并复制入
-docs/appendix/figures/ 图池（competition-record 步骤 2+4）。
-"""
 
 import csv
 import os
@@ -25,7 +12,7 @@ os.environ.setdefault(
 
 import matplotlib
 matplotlib.use('Agg')
-import matplotlib.pyplot as plt  # noqa: E402
+import matplotlib.pyplot as plt
 
 plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei',
                                    'Noto Sans CJK SC']
@@ -44,7 +31,6 @@ LABEL = {'reliable': '可靠可行（CI 下界 ≥ 0.90）',
 
 
 def load_verify(path):
-    """读 verify.csv → 按成本升序的候选行列表。"""
     rows = []
     with open(path, encoding='utf-8') as f:
         for r in csv.DictReader(f):
@@ -64,7 +50,7 @@ def main():
         raise SystemExit(f'缺 {CSV_VERIFY}，先跑独立种子复算生成结果')
 
     fig, ax = plt.subplots(figsize=(8.6, 6.4))
-    # y 轴：成本从高到低，顶部为最贵候选
+
     y = list(range(len(rows) - 1, -1, -1))
     drawn = set()
     for yi, r in zip(y, rows):

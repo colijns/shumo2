@@ -1,17 +1,5 @@
-# 本绘图程序在AI工具辅助下完成
-# AI工具名称：DeepSeek-V4-Flash，版本 / 型号：DeepSeek-V4-Flash-0731，开发机构 / 公司：深度求索（DeepSeek），版本发布日期：2026-07-31
-
-"""问题3配图：边界口径敏感性对照（图4）。
-
-两种边界口径的临界值对照：(a) 临界介质数量（根）、(b) 临界体积分数（pp，
-对数轴）。主口径（同源片段独立判定，M=10000 正式运行）：外切点估计 613、
-内接点估计 616、内接保守 619，约 0.87%；反面口径（同源片段自动电连续，
-假设一验证运行 M=2000）：8 根、约 0.0113 pp——对数坐标下相差两个数量级。
-数据来源：Q3/results/question3_result_hypothesis1.csv（无 BOM，utf-8）+
-question3_solid_curve.csv 与 question3_solid_summary.json。
-输出：Q3/figures/问题3_边界口径敏感性_临界对照.png + .pdf（300dpi，
-双格式），并复制入 docs/appendix/figures/ 图池（competition-record 步骤 2+4）。
-"""
+# 本程序及代码是在AI工具辅助下完成的
+# AI工具名称：DeepSeek‑V4‑Flash，版本 / 型号：DeepSeek‑V4‑Flash‑0731，开发机构 / 公司：深度求索（DeepSeek），版本发布日期：2026‑07‑31
 
 import csv
 import json
@@ -27,7 +15,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 _Q3 = os.path.dirname(os.path.abspath(__file__))
-# 与模板 plot_style 同款中文样式（内联，避免依赖 templates 路径）
 sys_fonts = ['SimHei', 'Microsoft YaHei', 'Noto Sans CJK SC']
 plt.rcParams['font.sans-serif'] = sys_fonts
 plt.rcParams['axes.unicode_minus'] = False
@@ -44,7 +31,6 @@ N_SAFE = 619
 
 
 def save_pair(fig, stem):
-    """competition-record 步骤 2+4：png/pdf 双格式保存 + 复制入图池。"""
     os.makedirs(FIG_DIR, exist_ok=True)
     os.makedirs(APPENDIX_FIG_DIR, exist_ok=True)
     base = os.path.join(FIG_DIR, stem)
@@ -57,7 +43,6 @@ def save_pair(fig, stem):
 
 
 def load_phi_at(n_list):
-    """从曲线取指定 n 的体积分数（pp）。"""
     with open(CURVE_CSV, encoding='utf-8-sig') as f:
         rows = {int(r['n']): float(r['phi_percent']) for r in csv.DictReader(f)}
     return [rows[n] for n in n_list]

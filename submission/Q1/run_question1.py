@@ -1,16 +1,6 @@
-"""问题1：按片段独立统一口径复算附件三组介质 A。
+# 本程序及代码是在AI工具辅助下完成的
+# AI工具名称：DeepSeek‑V4‑Flash，版本 / 型号：DeepSeek‑V4‑Flash‑0731，开发机构 / 公司：深度求索（DeepSeek），版本发布日期：2026‑07‑31
 
-规格：docs/问题1.md（第 15 节）。运行方式：
-    python run_question1.py
-输出：控制台三组结论 + results/question1_result.json（确定性序列化）。
-
-JSON 确定性保证：
-    - 接触边按 (i, j) 字典序排序；
-    - 距离 round 6 位小数；
-    - 主结果只使用零平移 k=(0,0,0)；
-    - 周期镜像接触结果仅作为敏感性对照；
-    - 节点名 A{idx+1}（附件行序从 1 起）。
-"""
 
 import json
 import os
@@ -28,7 +18,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 XLSX = os.path.join(os.path.dirname(HERE), 'attachment', '附件.xlsx')
 OUT_JSON = os.path.join(HERE, 'results', 'question1_result.json')
 
-GROUP_NAMES = ['组1', '组2', '组3']  # 附件工作表按索引 0/1/2（表名 GBK 乱码，按索引读）
+GROUP_NAMES = ['组1', '组2', '组3']
 
 
 def _edge_dict(i, j, k, d):
@@ -67,10 +57,10 @@ def main():
 
     groups = []
     for idx, name in enumerate(GROUP_NAMES):
-        c, u, h, _ = load_cylinders(XLSX, idx)  # 含规格第 9 节全部数据检查
+        c, u, h, _ = load_cylinders(XLSX, idx)
         t0 = time.time()
-        # 与问题2、3统一：附件每行按当前盒内片段实际位置判定，不通过
-        # 相对边界周期镜像自动连边。周期镜像只保留为敏感性对照。
+
+
         res = analyze_group(c, u, h, pbc=False)
         res_periodic = analyze_group(c, u, h, pbc=True)
         elapsed = time.time() - t0

@@ -1,18 +1,5 @@
-# 本绘图程序在AI工具辅助下完成
-# AI工具名称：DeepSeek-V4-Flash，版本 / 型号：DeepSeek-V4-Flash-0731，开发机构 / 公司：深度求索（DeepSeek），版本发布日期：2026-07-31
-
-"""问题3配图：早停检查根数诊断（图5）。
-
-嵌套共同样本下，每次试验在首次导通（N_c 根）后早停，实际检查根数
-C(N) = sum_{k<=N} (M - x(k-1))，x(k) 为 k 根处已导通试验数。左轴画
-C(N)（外切/内接），灰虚线为名义值 N*M（不早停时的 7500000 根）；
-右轴画已导通试验数 x(N)。跨壁比例的分母即 C(750)：
-3011987 / 4950009 = 0.6085（外切）。
-数据来源：Q3/results/question3_solid_curve.csv（M=10000，K=32，
-seed=20260808+i）+ question3_solid_summary.json。
-输出：Q3/figures/问题3_早停检查根数_诊断.png + .pdf（300dpi，双格式），
-并复制入 docs/appendix/figures/ 图池（competition-record 步骤 2+4）。
-"""
+# 本程序及代码是在AI工具辅助下完成的
+# AI工具名称：DeepSeek‑V4‑Flash，版本 / 型号：DeepSeek‑V4‑Flash‑0731，开发机构 / 公司：深度求索（DeepSeek），版本发布日期：2026‑07‑31
 
 import csv
 import json
@@ -28,7 +15,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 _Q3 = os.path.dirname(os.path.abspath(__file__))
-# 与模板 plot_style 同款中文样式（内联，避免依赖 templates 路径）
 sys_fonts = ['SimHei', 'Microsoft YaHei', 'Noto Sans CJK SC']
 plt.rcParams['font.sans-serif'] = sys_fonts
 plt.rcParams['axes.unicode_minus'] = False
@@ -45,7 +31,6 @@ N_SAFE = 619
 
 
 def save_pair(fig, stem):
-    """competition-record 步骤 2+4：png/pdf 双格式保存 + 复制入图池。"""
     os.makedirs(FIG_DIR, exist_ok=True)
     os.makedirs(APPENDIX_FIG_DIR, exist_ok=True)
     base = os.path.join(FIG_DIR, stem)
@@ -71,7 +56,6 @@ def load_summary():
 
 
 def checked_roots(rows, mode, m, n_max):
-    """C(N) = sum_{k<=N} (M - x(k-1))，x(0)=0，x(k)=p_hat(k)*M。"""
     c = np.zeros(n_max + 1)
     prev = 0.0
     for k in range(1, n_max + 1):
@@ -93,7 +77,7 @@ def main():
                         for k in range(1, n_max + 1)])
     nominal = m * np.arange(0, n_max + 1)
 
-    # 数值断言（与报告 §4.1 修正一致）
+
     assert abs(c_outer[N_MAX] - 4950009) < 1e-6, \
         f'C(750) outer={c_outer[N_MAX]}'
     assert abs(c_inner[N_MAX] - 4970014) < 1e-6, \

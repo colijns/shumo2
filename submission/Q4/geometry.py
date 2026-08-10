@@ -1,10 +1,5 @@
 # 本程序及代码是在AI工具辅助下完成的
-"""问题4混合介质几何内核。
-
-统一口径：圆柱A和球体B越界后形成的片段按盒内实际位置独立参与接触
-判定，同源片段不自动电连接。A沿用Q2的轴线切分；B使用球与基本盒的
-精确凸交集，并通过支撑函数计算截断球片段距离。
-"""
+# AI工具名称：DeepSeek‑V4‑Flash，版本 / 型号：DeepSeek‑V4‑Flash‑0731，开发机构 / 公司：深度求索（DeepSeek），版本发布日期：2026‑07‑31
 
 from dataclasses import dataclass
 import importlib.util
@@ -19,8 +14,6 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 Q1_DIR = os.path.join(ROOT, 'Q1')
 Q2_DIR = os.path.join(ROOT, 'Q2')
 
-# Q1 core 与 Q2 geometry 均通过独立模块名显式加载，避免把 Q1/Q2 目录
-# 注入 sys.path 顶部队后续 import（如 monte_carlo）造成误命中。
 _CORE_SPEC = importlib.util.spec_from_file_location(
     'q1_core_for_q4', os.path.join(Q1_DIR, 'core.py'))
 _q1_core = importlib.util.module_from_spec(_CORE_SPEC)
@@ -36,8 +29,6 @@ gjk_distance = _q1_core.gjk_distance
 segment_distance = _q1_core.segment_distance
 support_cylinder = _q1_core.support_cylinder
 
-# 本文件也叫geometry.py，不能直接 ``import geometry`` 复用Q2，否则会
-# 命中当前模块自身。使用独立模块名显式加载Q2几何内核。
 _Q2_SPEC = importlib.util.spec_from_file_location(
     'q2_geometry_for_q4', os.path.join(Q2_DIR, 'geometry.py'))
 q2geo = importlib.util.module_from_spec(_Q2_SPEC)
@@ -49,7 +40,7 @@ R_B = 200.0
 V_A = np.pi * R_A ** 2 * q2geo.CYL_LEN
 V_B = 4.0 * np.pi * R_B ** 3 / 3.0
 V_BOX = L ** 3
-COST_DENSITY_A = 1.05 / 1e9   # 元/nm^3
+COST_DENSITY_A = 1.05 / 1e9
 COST_DENSITY_B = 0.05 / 1e9
 COST_PER_A = COST_DENSITY_A * V_A
 COST_PER_B = COST_DENSITY_B * V_B
@@ -58,7 +49,6 @@ TOL = 1e-9
 
 @dataclass
 class Shape:
-    """一个边界处理后的凸片段。"""
 
     kind: str
     source: int
@@ -86,7 +76,6 @@ class Shape:
 
 
 def generate_spheres(n, rng):
-    """在微构体内均匀生成n个介质B球心。"""
     return rng.uniform(-HALF_L, HALF_L, size=(int(n), 3))
 
 
@@ -97,11 +86,6 @@ def _box_distance_sq(point, lower, upper):
 
 
 def support_clipped_ball(direction, center, radius, lower, upper):
-    """球与轴对齐盒交集的精确支撑点。
-
-    求 max v·x, s.t. ||x-center||<=radius, lower<=x<=upper。
-    KKT条件给出 y=x-center=clip(v/lambda, l, u)，用二分求球面约束。
-    """
     v = np.asarray(direction, dtype=float)
     c = np.asarray(center, dtype=float)
     lower = np.asarray(lower, dtype=float)
@@ -119,14 +103,14 @@ def support_clipped_ball(direction, center, radius, lower, upper):
     if np.all(y_ball >= rel_lo - TOL) and np.all(y_ball <= rel_hi + TOL):
         return c + y_ball
 
-    # 盒约束单独作用时的最优点；若已落在球内，它就是交集支撑点。
+
     y_box = np.where(v > 0.0, rel_hi,
                      np.where(v < 0.0, rel_lo,
                               np.minimum(np.maximum(0.0, rel_lo), rel_hi)))
     if np.linalg.norm(y_box) <= radius + 1e-10:
         return c + y_box
 
-    # 此时球约束活跃。lambda增大时||clip(v/lambda,l,u)||单调不增。
+
     low = 0.0
     high = max(norm_v / max(radius, 1e-30), 1e-12)
     for _ in range(100):
@@ -149,7 +133,6 @@ def support_clipped_ball(direction, center, radius, lower, upper):
 
 
 def wrap_spheres(centers, radius=R_B):
-    """将完整球按题意平移回基本盒，返回球-盒凸交片段。"""
     centers = np.asarray(centers, dtype=float).reshape(-1, 3)
     box_lo = -HALF_L * np.ones(3)
     box_hi = HALF_L * np.ones(3)
@@ -172,7 +155,6 @@ def wrap_spheres(centers, radius=R_B):
 
 
 def cylinder_shapes(c, u, h):
-    """复用Q2边界切分，将圆柱轴线片段转换为Shape。"""
     frag = q2geo.clip_batch(c, u, h)
     out = []
     for p1, p2, source in zip(frag['p1s'], frag['p2s'], frag['cyl_idx']):
@@ -182,7 +164,7 @@ def cylinder_shapes(c, u, h):
             continue
         center = 0.5 * (p1 + p2)
         axis = axis_vec / length
-        # 与Q2一致：径向包络用于粗筛，实际距离由平端圆柱支撑函数计算。
+
         lo = np.minimum(p1, p2) - R_A
         hi = np.maximum(p1, p2) + R_A
         out.append(Shape(
@@ -192,7 +174,6 @@ def cylinder_shapes(c, u, h):
 
 
 def gjk_support_distance(shape1, shape2, tol=1e-10, max_iter=80):
-    """由两个凸片段支撑函数计算最短距离。"""
     def support(v):
         return shape1.support(v) - shape2.support(-v)
 
@@ -219,7 +200,6 @@ def gjk_support_distance(shape1, shape2, tol=1e-10, max_iter=80):
 
 
 def point_to_cylinder_distance(point, cylinder):
-    """点到实心有限平端圆柱的距离。"""
     q = np.asarray(point, dtype=float) - cylinder.center
     axial = abs(float(q @ cylinder.axis))
     radial_vec = q - (q @ cylinder.axis) * cylinder.axis
@@ -230,7 +210,6 @@ def point_to_cylinder_distance(point, cylinder):
 
 
 def shape_distance(shape1, shape2):
-    """A-A、A-B、B-B片段距离；能解析时避免GJK。"""
     if shape1.kind == 'B' and shape2.kind == 'B':
         if not shape1.clipped and not shape2.clipped:
             return max(float(np.linalg.norm(shape1.center - shape2.center))
@@ -253,11 +232,6 @@ def shape_distance(shape1, shape2):
 
 
 def contact_within(shape1, shape2, delta=DELTA):
-    """阈值接触判定，返回(is_contact, used_iterative_distance)。
-
-    先使用包含真实几何体的胶囊/完整球距离作安全拒绝。下界大于delta时
-    无需GJK；未截断球的A-B、B-B距离本身可解析，亦无需迭代。
-    """
     if shape1.kind == 'A' and shape2.kind == 'A':
         p1 = shape1.center - shape1.half * shape1.axis
         p2 = shape1.center + shape1.half * shape1.axis
@@ -295,7 +269,6 @@ def contact_within(shape1, shape2, delta=DELTA):
 
 
 def aabb_candidate_pairs(shapes, delta=DELTA):
-    """按x轴排序的AABB扫描，返回所有盒间距可能不超过delta的片段对。"""
     n = len(shapes)
     if n < 2:
         return []
@@ -317,7 +290,6 @@ def aabb_candidate_pairs(shapes, delta=DELTA):
 
 
 def electrode_flags(shape, delta=DELTA):
-    """返回片段是否接触左、右带电面。"""
     if shape.kind == 'B':
         xmin, xmax = shape.lo[0], shape.hi[0]
     else:
@@ -329,7 +301,6 @@ def electrode_flags(shape, delta=DELTA):
 
 
 def sample_conductive(c_a, u_a, h_a, c_b, delta=DELTA):
-    """判断一个A/B混合随机构型是否导通。"""
     a_shapes = cylinder_shapes(c_a, u_a, h_a) if len(c_a) else []
     b_shapes = wrap_spheres(c_b) if len(c_b) else []
     shapes = a_shapes + b_shapes
@@ -392,7 +363,6 @@ def sample_conductive(c_a, u_a, h_a, c_b, delta=DELTA):
 
 
 def generate_sample(n_a, n_b, rng):
-    """生成并判断一个混合构型。"""
     c_a, u_a, h_a = q2geo.generate_cylinders(int(n_a), rng)
     c_b = generate_spheres(int(n_b), rng)
     return sample_conductive(c_a, u_a, h_a, c_b)

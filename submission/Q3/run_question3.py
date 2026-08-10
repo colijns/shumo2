@@ -1,10 +1,5 @@
 # 本程序及代码是在AI工具辅助下完成的
-"""问题3：用完整实体首次导通分布估计90%最低填充量。
-
-核心输出不是单个体积分数上的独立概率，而是每次共同随机样本的首次导通
-根数。外切多棱柱给出真实临界根数下界，内接多棱柱给出上界；两者随正多
-边形边数增加而收敛。
-"""
+# AI工具名称：DeepSeek‑V4‑Flash，版本 / 型号：DeepSeek‑V4‑Flash‑0731，开发机构 / 公司：深度求索（DeepSeek），版本发布日期：2026‑07‑31
 
 from concurrent.futures import ProcessPoolExecutor
 from decimal import Decimal, ROUND_HALF_UP
@@ -25,9 +20,9 @@ for path in (HERE, Q2_DIR):
     if path not in sys.path:
         sys.path.insert(0, path)
 
-import monte_carlo as mc  # noqa: E402
-import solid_first_passage as first_passage  # noqa: E402
-import solid_geometry  # noqa: E402
+import monte_carlo as mc
+import solid_first_passage as first_passage
+import solid_geometry
 
 
 TARGET = float(os.environ.get('SHUMO_Q3_TARGET', '0.90'))
@@ -46,7 +41,6 @@ CURVE_CSV = os.path.join(RESULT_DIR, 'question3_solid_curve.csv')
 
 
 def empirical_cdf(contacts, n_max, target=TARGET):
-    """首次导通根数样本转为单调经验CDF及逐点Wilson区间。"""
     m = len(contacts)
     if m == 0:
         raise ValueError('首次导通样本不能为空')
@@ -79,7 +73,6 @@ def empirical_cdf(contacts, n_max, target=TARGET):
 
 def bootstrap_n90(contacts, n_max, repeats=BOOTSTRAP_REPEATS,
                   target=TARGET, seed=99173):
-    """首次导通根数90%分位数的可复现Bootstrap区间。"""
     if repeats <= 0:
         return None
     values = np.asarray(
@@ -178,7 +171,6 @@ def _batch_worker(args):
 def run_trials(n_max=N_MAX, trials=TRIALS, workers=WORKERS,
                batch_size=BATCH_SIZE, base_seed=BASE_SEED,
                n_sides=N_SIDES):
-    """并行运行实体上下界首次导通试验。"""
     if trials <= 0 or workers <= 0 or batch_size <= 0:
         raise ValueError('试验数、进程数和批大小必须为正整数')
     chunks = [list(range(start, min(start + batch_size, trials)))

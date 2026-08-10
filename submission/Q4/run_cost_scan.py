@@ -1,9 +1,5 @@
 # 本程序及代码是在AI工具辅助下完成的
-"""问题4粗筛：在多个成本水平上扫描A/B整数配比。
-
-本程序只负责定位可行边界，不把小样本结果当作最终最优解。后续应在边界附近
-追加独立样本，并以置信区间检验导通概率是否达到0.9。
-"""
+# AI工具名称：DeepSeek‑V4‑Flash，版本 / 型号：DeepSeek‑V4‑Flash‑0731，开发机构 / 公司：深度求索（DeepSeek），版本发布日期：2026‑07‑31
 
 import csv
 from concurrent.futures import ProcessPoolExecutor
@@ -14,7 +10,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import monte_carlo as mc  # noqa: E402
+import monte_carlo as mc
 
 
 TRIALS = int(os.environ.get('SHUMO_Q4_SCAN_TRIALS', '4'))

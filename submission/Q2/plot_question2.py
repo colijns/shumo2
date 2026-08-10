@@ -1,15 +1,5 @@
-# 本绘图程序在AI工具辅助下完成
+# 本程序及代码是在AI工具辅助下完成的
 # AI工具名称：DeepSeek‑V4‑Flash，版本 / 型号：DeepSeek‑V4‑Flash‑0731，开发机构 / 公司：深度求索（DeepSeek），版本发布日期：2026‑07‑31
-
-"""问题2 配图：介质A体积分数 vs 导通概率（完整实体内外接夹逼，图4）。
-
-数据来源：Q2/results/solid_boundary_comparison.json（正式版，M=2000/体积分数，
-seed=20260808，K=64，内外接共用同一批随机构型）。内接正多棱柱为导通概率
-下界（蓝圆点），外切正多棱柱为上界（橙方点），两者之间灰色阴影带为夹逼区间，
-误差棒为 95% Wilson 区间。旧轴线口径 question2_result.csv 已弃用（见报告 6 节）。
-输出：Q2/figures/问题2_导通概率_vs_体积分数.png + .pdf（300dpi，双格式），
-并复制入 docs/appendix/figures/ 图池（competition-record 步骤 2+4）。
-"""
 
 import json
 import os
@@ -24,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 _Q2 = os.path.dirname(os.path.abspath(__file__))
-# 与模板 plot_style 同款中文样式（内联，避免依赖 templates 路径）
 sys_fonts = ['SimHei', 'Microsoft YaHei', 'Noto Sans CJK SC']
 plt.rcParams['font.sans-serif'] = sys_fonts
 plt.rcParams['axes.unicode_minus'] = False
@@ -35,7 +24,6 @@ APPENDIX_FIG_DIR = os.path.join(os.path.dirname(_Q2), 'docs', 'appendix', 'figur
 
 
 def save_pair(fig, stem):
-    """competition-record 步骤 2+4：png/pdf 双格式保存 + 复制入图池。"""
     os.makedirs(FIG_DIR, exist_ok=True)
     os.makedirs(APPENDIX_FIG_DIR, exist_ok=True)
     base = os.path.join(FIG_DIR, stem)
@@ -67,8 +55,8 @@ def main():
     fig, ax = plt.subplots(figsize=(7, 4.6))
     ax.fill_between(phis * 100, inner_p, outer_p, color='gray', alpha=0.25,
                     label='内外接夹逼区间')
-    # 内外接在 0.60%/0.70% 处仅差 0.0010/0.0015，曲线近重合，
-    # 横轴错位 ±0.25 pp（灰色带仍按真实位置绘制）便于区分两条线
+
+
     x_inner = phis * 100 - 0.25
     x_outer = phis * 100 + 0.25
     ax.errorbar(x_inner, inner_p, yerr=[inner_p - inner_lo, inner_hi - inner_p],

@@ -1,20 +1,6 @@
-"""Q4低成本临界候选的严格混合实体复核。
+# 本程序及代码是在AI工具辅助下完成的
+# AI工具名称：DeepSeek‑V4‑Flash，版本 / 型号：DeepSeek‑V4‑Flash‑0731，开发机构 / 公司：深度求索（DeepSeek），版本发布日期：2026‑07‑31
 
-快速Q4程序负责定位候选；本程序对候选集合共享同一随机介质前缀，同时计算
-内接和外切实体模型。严格判定规则：
-
-* inner的Wilson下限 >= 0.90：可靠可行；
-* outer的Wilson上限 < 0.90：可靠不足；
-* 其他：待追加样本或提高几何分辨率。
-
-默认候选包含原Q4搜索点、7个低成本跨线点、617附近纯A点以及统一推荐619。
-程序按trial保存检查点，M可从小样本直接扩展到正式样本而不重复已完成试验。
-
-常用环境变量：SHUMO_Q4_STRICT_TRIALS、SHUMO_Q4_STRICT_WORKERS、
-SHUMO_Q4_STRICT_A_SEQUENCE（统一口径固定为750）、SHUMO_Q4_CHECKPOINT_EVERY。
-Windows可选SHUMO_Q4_AFFINITY_CORES或SHUMO_Q4_AFFINITY_MASK限制处理器亲和性，
-并以SHUMO_Q4_BELOW_NORMAL_PRIORITY=1降低优先级。使用--status只查看检查点。
-"""
 
 import argparse
 import csv
@@ -34,31 +20,33 @@ for path in (HERE, os.path.join(ROOT, 'Q2')):
     if path not in sys.path:
         sys.path.insert(0, path)
 
-import geometry as axis_geometry  # noqa: E402
-import geometry_mix as fast_geometry  # noqa: E402
-import solid_mix_geometry as strict_geometry  # noqa: E402
-from monte_carlo import wilson_ci  # noqa: E402
+import geometry as axis_geometry
+import geometry_mix as fast_geometry
+import solid_mix_geometry as strict_geometry
+from monte_carlo import wilson_ci
 
 
 TARGET = 0.90
 FAMILY_ALPHA = 0.05
 FORMAL_RECOMMENDATION = (619, 0)
+FORMAL_TRIALS = 4000
 A_SEQUENCE_LENGTH_DEFAULT = 750
-DEFAULT_CANDIDATES = (
+MIXED_CANDIDATES = (
     (598, 62),
-    (609, 5), (608, 14), (610, 4), (611, 0), (610, 12),
-    (616, 0), (617, 0), (617, 1), (618, 0), (619, 0),
+    (609, 5), (608, 14), (610, 4),
+    (611, 3), (610, 12), (609, 21),
+    (617, 1),
 )
+DEFAULT_CANDIDATES = MIXED_CANDIDATES
 RESULT_DIR = os.path.join(HERE, 'results')
 CHECKPOINT = os.path.join(
-    RESULT_DIR, 'question4_strict_mixed_checkpoint_nA750.json')
+    RESULT_DIR, 'question4_strict_mixed_checkpoint_v2_nA750.json')
 CHECKPOINT_BACKUP = CHECKPOINT + '.bak'
 SUMMARY = os.path.join(RESULT_DIR, 'question4_strict_mixed_summary.json')
 CSV_RESULT = os.path.join(RESULT_DIR, 'question4_strict_mixed_candidates.csv')
 
 
 def strict_verdict(inner_x, outer_x, m, target=TARGET):
-    """根据概率下界/上界作严格三分类。"""
     _, inner_lo, inner_hi = wilson_ci(int(inner_x), int(m))
     _, outer_lo, outer_hi = wilson_ci(int(outer_x), int(m))
     if inner_lo >= target:
@@ -71,7 +59,6 @@ def strict_verdict(inner_x, outer_x, m, target=TARGET):
 
 
 def wilson_ci_alpha(x, m, alpha):
-    """任意显著性水平的Wilson区间，用于多候选联合置信校正。"""
     if m <= 0 or not (0.0 < alpha < 1.0):
         raise ValueError('m必须为正且alpha必须位于0与1之间')
     p = float(x) / float(m)
@@ -86,11 +73,6 @@ def wilson_ci_alpha(x, m, alpha):
 
 def joint_strict_verdict(inner_x, outer_x, m, n_candidates,
                          target=TARGET, family_alpha=FAMILY_ALPHA):
-    """Bonferroni联合置信下的严格三分类。
-
-    每个候选同时包含内界与外界两个概率参数，因此总计有
-    ``2 * n_candidates`` 个区间需要联合覆盖。
-    """
     alpha_each = float(family_alpha) / (2 * int(n_candidates))
     _, inner_lo, inner_hi = wilson_ci_alpha(inner_x, m, alpha_each)
     _, outer_lo, outer_hi = wilson_ci_alpha(outer_x, m, alpha_each)
@@ -104,7 +86,6 @@ def joint_strict_verdict(inner_x, outer_x, m, n_candidates,
 
 
 def _generate_trial_geometry(seed, n_a_used, n_b_used, a_sequence_length):
-    """按Q3固定A序列长度生成一次试验，再截取实际使用前缀。"""
     if a_sequence_length < n_a_used:
         raise ValueError('A固定序列长度不能小于实际使用数量')
     rng = np.random.default_rng(seed)
@@ -119,9 +100,9 @@ def _trial_job(args):
      ball_subdivisions, a_sequence_length) = args
     n_a_max = max(point[0] for point in candidates)
     n_b_max = max(point[1] for point in candidates)
-    # 必须先生成与Q3相同长度的完整A序列，再取候选前缀。generate_cylinders
-    # 分别批量抽取中心、方向和长度；若直接生成619而Q3生成750，方向/长度
-    # 的随机数位置会错位，导致“同seed”并非同一个微构体样本。
+
+
+
     c, u, h, balls = _generate_trial_geometry(
         base_seed + trial_index, n_a_max, n_b_max, a_sequence_length)
     inner, outer = strict_geometry.prepare_paired(
@@ -280,9 +261,15 @@ def summarize(candidates, rows, cyl_sides, ball_subdivisions, base_seed,
             if row['cost_yuan'] < joint_cheapest['cost_yuan']
             and row['joint_strict_verdict']
             != 'joint_reliably_insufficient']
-    formal_row = next(
-        (row for row in result_rows
-         if (row['N_A'], row['N_B']) == FORMAL_RECOMMENDATION), None)
+    joint_insufficient = [
+        row for row in result_rows
+        if row['joint_strict_verdict'] == 'joint_reliably_insufficient']
+    joint_undetermined = [
+        row for row in result_rows
+        if row['joint_strict_verdict'] == 'joint_undetermined']
+    joint_mixed_feasible = [
+        row for row in result_rows
+        if row['joint_strict_verdict'] == 'joint_reliably_feasible']
     return {
         'method': 'A圆柱+B球体内接/外切多面体周期实体夹逼',
         'config': {
@@ -309,19 +296,26 @@ def summarize(candidates, rows, cyl_sides, ball_subdivisions, base_seed,
         'stage_joint_cheapest_reliably_feasible': joint_cheapest,
         'joint_cheaper_unresolved_count': len(joint_cheaper_unresolved),
         'joint_cheaper_unresolved': joint_cheaper_unresolved,
+        'screened_mixed_status_counts': {
+            'reliably_insufficient': len(joint_insufficient),
+            'undetermined': len(joint_undetermined),
+            'reliably_feasible': len(joint_mixed_feasible),
+        },
         'formal_unified_recommendation': {
             'N_A': FORMAL_RECOMMENDATION[0],
             'N_B': FORMAL_RECOMMENDATION[1],
             'source': 'Q3 M=10000 strict solid bound',
-            'candidate_audit': formal_row,
+            'candidate_audit': None,
+            'note': '纯A不纳入Q4混合候选重复检验',
         },
+        'formal_recommendation_supported_within_screened_mixed_set': bool(
+            len(joint_insufficient) == len(result_rows)),
         'global_claim_ready_within_candidate_set': bool(
-            joint_cheapest is not None and not joint_cheaper_unresolved),
+            not joint_undetermined),
     }
 
 
 def _write_result_files(summary):
-    """原子写出汇总JSON与候选CSV，避免中断后留下半文件。"""
     summary_temporary = SUMMARY + '.tmp'
     with open(summary_temporary, 'w', encoding='utf-8') as handle:
         json.dump(summary, handle, ensure_ascii=False, indent=2)
@@ -341,11 +335,6 @@ def _write_result_files(summary):
 
 
 def _configure_windows_runtime_limit():
-    """Optionally cap Windows CPU affinity before the process pool is created.
-
-    Worker processes inherit the parent's affinity and priority.  This permits a
-    hard machine-wide CPU ceiling without changing trial seeds or model logic.
-    """
     affinity_text = os.environ.get('SHUMO_Q4_AFFINITY_CORES', '').strip()
     affinity_mask_text = os.environ.get('SHUMO_Q4_AFFINITY_MASK', '').strip()
     below_normal = os.environ.get(
@@ -404,7 +393,8 @@ def main():
                         help='只查看检查点状态，不启动模拟')
     args = parser.parse_args()
 
-    trials = int(os.environ.get('SHUMO_Q4_STRICT_TRIALS', '4000'))
+    trials = int(os.environ.get(
+        'SHUMO_Q4_STRICT_TRIALS', str(FORMAL_TRIALS)))
     workers = int(os.environ.get(
         'SHUMO_Q4_STRICT_WORKERS', str(min(8, os.cpu_count() or 1))))
     base_seed = int(os.environ.get('SHUMO_Q4_STRICT_SEED', '20260808'))
@@ -447,6 +437,11 @@ def main():
         candidates, rows, cyl_sides, ball_subdivisions, base_seed,
         a_sequence_length)
     summary['elapsed_s'] = time.perf_counter() - started
+    summary['predeclared_formal_trials'] = FORMAL_TRIALS
+    summary['run_status'] = (
+        'formal_complete_M4000'
+        if trials == FORMAL_TRIALS and not args.smoke
+        else 'nonformal_custom_or_smoke_run')
 
     _write_result_files(summary)
 
@@ -472,8 +467,13 @@ def main():
         print(f"候选族联合95%阶段最低可靠候选："
               f"({joint_best['N_A']},{joint_best['N_B']})；"
               f"其下仍待定 {summary['joint_cheaper_unresolved_count']} 个")
-    print('最终统一保守推荐（来自Q3 M=10000）：(619,0)，'
-          '不由本批阶段最低点覆盖。')
+    counts = summary['screened_mixed_status_counts']
+    print('含B候选联合判定：'
+          f"不足 {counts['reliably_insufficient']}，"
+          f"待定 {counts['undetermined']}，"
+          f"可行 {counts['reliably_feasible']}")
+    print('纯A保守基准（来自Q3 M=10000）：(619,0)；'
+          'Q4只检验含B方案能否以更低成本替代该基准。')
     print(f"上下界违例：{summary['bracket_violations']}")
     print(f'结果：{SUMMARY}')
 

@@ -1,26 +1,7 @@
 # 本程序及代码是在AI工具辅助下完成的
 # AI工具名称：DeepSeek‑V4‑Flash，版本 / 型号：DeepSeek‑V4‑Flash‑0731，开发机构 / 公司：深度求索（DeepSeek），版本发布日期：2026‑07‑31
 
-"""问题4 几何内核：介质A（圆柱）+ 介质B（球）混合接触网络与导通判定。
 
-建模口径（docs/问题4.md 同步，主口径：片段独立参与接触判定）：
-- A 片段：与 Q2/Q3 一致——clip_batch 截断平移，AABB+胶囊初筛+GJK 精算；
-- B 片段：完整球模型（口径确认）。球心在盒内保留本体片段；越界球沿
-  相应方向平移 ±L 生成完整球片段（球冠∩盒的超集近似，与 Q2 圆柱半径
-  伸出盒外仍按完整圆柱处理的口径一致）。同源编号仅追踪来源，不自动
-  连边，只有实际表面距离 ≤ δ 才建电连接；
-- 三类接触（均 ≤ δ = 1.8 nm 建边）：
-  A-A: 轴距只作安全拒绝；侧面最近点可解析接受，其余候选走 GJK 精算；
-  A-B: 球心到有限平端实心圆柱的精确距离减 r_B；
-  B-B: max(‖c_i - c_j‖ - 2r_B, 0)；
-- 电极距离：A 用 Q2 electrode_dist；B 用 max(c_x ∓ r_B ± HALF_L, 0)；
-- 成本：C = 1.05·N_A·V_A + 0.05·N_B·V_B（元，V 以 μm³ 计）。单件成本
-  c_A ≈ 1.4844e-2、c_B ≈ 1.6755e-3 由题目尺寸与单位体积价格换算，
-  属派生值，不是额外给定参数。
-
-复用（只读）：Q2/geometry.py（clip_batch、electrode_dist、GJK 等）、
-Q3/first_passage.py（crossing_count 圆柱跨壁自检）、Q1/core.py UnionFind。
-"""
 
 import os
 import sys
@@ -34,51 +15,45 @@ _Q1 = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'Q1')
 for _p in (_Q2, _Q3, _Q1):
     if _p not in sys.path:
         sys.path.insert(0, _p)
-import geometry as geo  # noqa: E402
-from core import UnionFind  # noqa: E402
-from first_passage import crossing_count as crossing_count_cylinders  # noqa: E402
+import geometry as geo
+from core import UnionFind
+from first_passage import crossing_count as crossing_count_cylinders
 
 try:
     from scipy.spatial import cKDTree
     _HAS_SCIPY = True
-except Exception:  # noqa: BLE001  （scipy 不可用时走空间网格兜底）
+except Exception:
     cKDTree = None
     _HAS_SCIPY = False
 
-R_A = geo.R                    # 介质A 半径 (nm) = 30
-R_B = 200.0                    # 介质B 半径 (nm) = 0.2 μm
-DELTA = geo.DELTA              # 电接触临界距离 (nm) = 1.8
-L = geo.L                      # 微构体边长 (nm) = 10000
-HALF_L = geo.HALF_L            # 半边长 = 5000
+R_A = geo.R
+R_B = 200.0
+DELTA = geo.DELTA
+L = geo.L
+HALF_L = geo.HALF_L
 
-CYL_LEN = 5000.0               # 介质A 圆柱长度 (nm) = 5 μm
-V_A_NM3 = np.pi * R_A ** 2 * CYL_LEN          # ≈ 1.4137e7 nm³
-V_B_NM3 = 4.0 / 3.0 * np.pi * R_B ** 3        # ≈ 3.3510e7 nm³
-V_A_UM3 = V_A_NM3 / 1e9        # ≈ 1.4137e-2 μm³
-V_B_UM3 = V_B_NM3 / 1e9        # ≈ 3.3510e-2 μm³
-C_A_PER_UM3 = 1.05             # 介质A 单位体积价格 (元/μm³)
-C_B_PER_UM3 = 0.05             # 介质B 单位体积价格 (元/μm³)
-c_A = C_A_PER_UM3 * V_A_UM3    # 单件A成本 ≈ 1.4844e-2 元
-c_B = C_B_PER_UM3 * V_B_UM3    # 单件B成本 ≈ 1.6755e-3 元
+CYL_LEN = 5000.0
+V_A_NM3 = np.pi * R_A ** 2 * CYL_LEN
+V_B_NM3 = 4.0 / 3.0 * np.pi * R_B ** 3
+V_A_UM3 = V_A_NM3 / 1e9
+V_B_UM3 = V_B_NM3 / 1e9
+C_A_PER_UM3 = 1.05
+C_B_PER_UM3 = 0.05
+c_A = C_A_PER_UM3 * V_A_UM3
+c_B = C_B_PER_UM3 * V_B_UM3
 
-THRESH_AB = R_A + R_B + DELTA  # 231.8：球心到轴线段的安全候选阈值
-THRESH_BB = 2.0 * R_B + DELTA  # 401.8：球心距初筛阈值（B-B 表面距 ≤ δ 等价）
-TOL_CONTACT = 1e-6             # 建边浮点容差
+THRESH_AB = R_A + R_B + DELTA
+THRESH_BB = 2.0 * R_B + DELTA
+TOL_CONTACT = 1e-6
 
 def _bb_pairs_grid(coords, thresh):
-    """空间网格精确查询距离不超过 ``thresh`` 的球心对。
-
-    网格边长取实际判定半径。若两点欧氏距离不超过该半径，则任一坐标的
-    网格编号至多相差 1，因此只需检查本格及相邻 26 格。该实现不构造
-    n×n 矩阵，内存随点数和实际邻接边数近似线性增长。
-    """
     n = len(coords)
     if n < 2 or thresh < 0.0:
         return np.empty((0, 2), dtype=np.int64)
 
     radius = float(thresh) + TOL_CONTACT
     if radius <= 0.0:
-        # 仅保留完全重合的不同点；采用正数机器精度作为网格尺度。
+
         cell_size = np.finfo(float).eps
     else:
         cell_size = radius
@@ -104,13 +79,12 @@ def _bb_pairs_grid(coords, thresh):
                     pairs.append((i, j))
     if not pairs:
         return np.empty((0, 2), dtype=np.int64)
-    # 外层 i 递增，但相邻格遍历顺序不保证 j 有序；统一排序便于复现与测试。
+
     pairs.sort()
     return np.asarray(pairs, dtype=np.int64)
 
 
 def bb_pairs(coords, thresh=THRESH_BB):
-    """球心接触对（距离 ≤ thresh，i<j），内存复杂度近似 O(n+k)。"""
     coords = np.asarray(coords, dtype=float)
     n = len(coords)
     if n < 2:
@@ -123,19 +97,10 @@ def bb_pairs(coords, thresh=THRESH_BB):
 
 
 def generate_balls(n, rng):
-    """随机生成 n 个介质B。返回 (n,3) 球心，三坐标独立均匀 U(-5000, 5000)。"""
     return rng.uniform(-HALF_L, HALF_L, size=(n, 3))
 
 
 def clip_balls(cs):
-    """球越界片段：完整球模型。
-
-    球心在盒内保留本体片段；某轴 c_k + r_B > HALF_L 越 + 界时生成沿 -L
-    平移的完整球片段，c_k - r_B < -HALF_L 时生成沿 +L 平移的完整球片段。
-    多轴同时越界时必须枚举组合平移，例如同时跨 x、y 时还需生成
-    (-L,-L,0) 镜像。因此每球最多产生 2^3=8 个周期片段。
-    返回 {'c_img': (m,3) 片段球心, 'ball_idx': (m,) int 来源编号}。
-    """
     cs = np.asarray(cs, dtype=float)
     n = len(cs)
     if n == 0:
@@ -160,7 +125,6 @@ def clip_balls(cs):
 
 
 def ball_crossing_ratio(cs):
-    """球跨壁比例（自检对照理论 1-(1-2r_B/L)³ ≈ 11.53%）。返回 float。"""
     cs = np.asarray(cs, dtype=float)
     if len(cs) == 0:
         return 0.0
@@ -169,13 +133,9 @@ def ball_crossing_ratio(cs):
 
 
 def sphere_electrode_dist(cs):
-    """球片段到左右带电面 x=±5000 的最短表面距离（向量化）。
-
-    返回 (dL, dR)，clamp ≥ 0（球穿过电极面即接触，距离 0）。
-    """
     cs = np.asarray(cs, dtype=float)
-    # 电极是有限正方形而不是无限平面。周期镜像球心可能在 y/z 方向位于
-    # 基本盒外，必须计算球心到电极正方形的距离，不能只看 x 坐标。
+
+
     dy = np.maximum(np.abs(cs[:, 1]) - HALF_L, 0.0)
     dz = np.maximum(np.abs(cs[:, 2]) - HALF_L, 0.0)
     center_left = np.sqrt((cs[:, 0] + HALF_L) ** 2 + dy ** 2 + dz ** 2)
@@ -186,12 +146,10 @@ def sphere_electrode_dist(cs):
 
 
 def cost(na, nb):
-    """总成本（元）：C = 1.05·N_A·V_A + 0.05·N_B·V_B（V 以 μm³ 计）。"""
     return c_A * na + c_B * nb
 
 
 def _segment_distance_params_batch(a1, b1, a2, b2):
-    """线段距离及最近点参数 s,t（与 Q2 Ericson 批量实现同分支）。"""
     uvec = b1 - a1
     vvec = b2 - a2
     w = a1 - a2
@@ -222,11 +180,6 @@ def _segment_distance_params_batch(a1, b1, a2, b2):
 
 
 def _aa_edges_all(p1s, p2s, a_lo, a_hi):
-    """A-A 全量接触边（片段全局 id 对）：AABB 预筛 → 轴距解析 → 临界带 GJK 复核。
-
-    轴线段距离减 2R_A 是胶囊体距离，不是有限平端圆柱的精确距离。它只能
-    安全拒绝 d_axis > 2R_A+δ 的候选；所有剩余候选均须调用 GJK 精算。
-    """
     n = len(p1s)
     if n < 2:
         return np.empty((0, 2), dtype=np.int64)
@@ -244,9 +197,9 @@ def _aa_edges_all(p1s, p2s, a_lo, a_hi):
     out = []
     for m in candidate:
         fi, fj = int(ii[m]), int(jj[m])
-        # 两最近轴点均严格位于线段内部时，公共法向同时垂直于两轴，
-        # 此时平端圆柱的侧面距离精确等于 max(d_axis-2R,0)。
-        # 涉及任一端点时必须走 GJK，防止把胶囊半球误当成圆柱端面。
+
+
+
         interior = (1e-10 < s[m] < 1.0 - 1e-10
                     and 1e-10 < t[m] < 1.0 - 1e-10)
         if interior or geo._fragment_gjk(
@@ -257,11 +210,6 @@ def _aa_edges_all(p1s, p2s, a_lo, a_hi):
 
 
 def point_finite_cylinder_distance_batch(p1s, p2s, points, radius=R_A):
-    """点到有限平端实心圆柱的精确距离（向量化）。
-
-    设点相对圆柱中心的轴向超出量为 a，径向超出量为 b，则到实体的距离为
-    hypot(a,b)。该公式正确处理圆柱侧面、端面及端面圆周外侧区域。
-    """
     p1s = np.asarray(p1s, dtype=float)
     p2s = np.asarray(p2s, dtype=float)
     points = np.asarray(points, dtype=float)
@@ -280,11 +228,6 @@ def point_finite_cylinder_distance_batch(p1s, p2s, points, radius=R_A):
 
 
 def _ab_edges_all(p1s, p2s, a_lo, a_hi, c_img, b_lo, b_hi):
-    """A-B 全量接触边（A 段全局 id, B 片段全局 id）。
-
-    球与圆柱接触当且仅当球心到有限平端圆柱实体的距离 ≤ r_B+δ。
-    轴线段距离 ≤ r_A+r_B+δ 只作为安全候选筛选，不能直接判连。
-    """
     n_a, n_b = len(p1s), len(c_img)
     if n_a == 0 or n_b == 0:
         return np.empty((0, 2), dtype=np.int64)
@@ -308,18 +251,6 @@ def _ab_edges_all(p1s, p2s, a_lo, a_hi, c_img, b_lo, b_hi):
 
 
 def prepare_trial(c, u, h, ball_cs, nb_max):
-    """预计算一次试验的全部片段与全量接触边（跨候选复用，避免重复计算）。
-
-    c, u, h: 完整 A 序列（na_max 根）；ball_cs: 完整 B 序列（nb_max 个）。
-    共同随机数：trial_seed = BASE_SEED + trial_index，每个试验只 prepare 一次，
-    全部候选 (N_A, N_B) 前缀共享同一份边列表（sample_prefix 内按前缀过滤）。
-
-    接触边均带来源编号（cyl_idx / ball_idx），前缀过滤 = 两边来源都 < 候选数量。
-    返回 dict：
-        A 片段：p1s/p2s/cyl_idx/dL_A/dR_A/a_lo/a_hi；
-        B 片段：c_img/ball_idx/dL_B/dR_B/b_lo/b_hi；
-        全量接触边：aa_edges (A,A)、ab_edges (A段,B片段)、bb_edges (B片段,B片段)。
-    """
     frag = geo.clip_batch(c, u, h)
     p1s, p2s, cyl_idx = frag['p1s'], frag['p2s'], frag['cyl_idx']
     dL_A, dR_A = geo.electrode_dist(p1s, p2s)
@@ -342,11 +273,6 @@ def prepare_trial(c, u, h, ball_cs, nb_max):
 
 
 def sample_prefix(pr, n_a, n_b, delta=DELTA):
-    """前缀 (n_a, n_b) 导通判定：并查集建图，早停。
-
-    节点布局：A 片段本地 0..nA-1（按全局顺序），B 片段 nA..nA+nB-1。
-    返回 bool：S/T 是否同一连通分量。
-    """
     if n_a + n_b == 0:
         return False
     iA = np.nonzero(pr['cyl_idx'] < n_a)[0]
@@ -375,10 +301,10 @@ def sample_prefix(pr, n_a, n_b, delta=DELTA):
     if uf.connected(s_node, t_node):
         return True
 
-    # 接触边全部在 prepare_trial 全量预计算（本 trial 的 na_max/nb_max 全图）。
-    # 前缀过滤：边的两端来源编号都 < 候选数量 → union（共同随机数下 Y_s 单调
-    # 不减的来源：前缀子图是全集子图，边集合是子集）。
-    # A-A：边 (A 段全局 id, A 段全局 id)
+
+
+
+
     if nA >= 2 and len(pr['aa_edges']):
         ei = pr['aa_edges'][:, 0]
         ej = pr['aa_edges'][:, 1]
@@ -390,7 +316,7 @@ def sample_prefix(pr, n_a, n_b, delta=DELTA):
         if uf.connected(s_node, t_node):
             return True
 
-    # A-B：边 (A 段全局 id, B 片段全局 id)
+
     if nA and nB and len(pr['ab_edges']):
         ef = pr['ab_edges'][:, 0]
         eb = pr['ab_edges'][:, 1]
@@ -402,7 +328,7 @@ def sample_prefix(pr, n_a, n_b, delta=DELTA):
         if uf.connected(s_node, t_node):
             return True
 
-    # B-B：边 (B 片段全局 id, B 片段全局 id)
+
     if nB >= 2 and len(pr['bb_edges']):
         ea = pr['bb_edges'][:, 0]
         eb = pr['bb_edges'][:, 1]
@@ -415,7 +341,6 @@ def sample_prefix(pr, n_a, n_b, delta=DELTA):
 
 
 def sample_mixed(c, u, h, ball_cs, delta=DELTA):
-    """完整图导通判定（测试/demo/绘图用）。返回 dict{conductive, ...}。"""
     pr = prepare_trial(c, u, h, ball_cs, len(ball_cs))
     return {'conductive': bool(sample_prefix(pr, len(c), len(ball_cs),
                                              delta=delta)),
@@ -423,11 +348,6 @@ def sample_mixed(c, u, h, ball_cs, delta=DELTA):
 
 
 def first_contact_nb(ball_cs, delta=DELTA):
-    """纯B 单次试验：增量逐球加入，返回首次导通球数 N_c（None = 未导通）。
-
-    与 Q3 first_contact_n 同构：全部片段一次配对（bb_pairs），按
-    max(ball_idx) 分桶，逐球加入时只处理该球引出的接触对；早停。
-    """
     n_b = len(ball_cs)
     if n_b == 0:
         return None
@@ -459,7 +379,7 @@ def first_contact_nb(ball_cs, delta=DELTA):
 
 
 if __name__ == '__main__':
-    # 冒烟：混合小样本 + 纯B 首次导通
+
     import time
     t0 = time.perf_counter()
     rng = np.random.default_rng(42)

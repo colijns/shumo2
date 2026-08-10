@@ -1,0 +1,76 @@
+{
+  "problem": "A题问题2",
+  "model": {
+    "boundary_geometry": "轴线截断并平移；片段按实际位置独立判定",
+    "same_source_auto_connection": false,
+    "solid_boundary_note": "轴线分段近似，不等同于圆柱实体与基本盒精确求交",
+    "delta_nm": 1.8,
+    "base_seed": 42,
+    "batch_seed_formula": "base_seed + 100000*phi_index + batch_index",
+    "batch_size": 50,
+    "theoretical_axis_crossing_rate": 0.6007922408513481
+  },
+  "rows": [
+    {
+      "phi": 0.005,
+      "n_A": 354,
+      "m": 2000,
+      "x": 181,
+      "p_hat": 0.0905,
+      "ci_lower": 0.07869900853114069,
+      "ci_upper": 0.10387105321692687,
+      "mean_fragments": 618.9435,
+      "mean_crossing": 212.3395,
+      "mean_crossing_rate": 0.5998290960451976,
+      "mean_edges": 159.347,
+      "mean_gjk": 160.6325,
+      "elapsed_s": 293.37372440000036
+    },
+    {
+      "phi": 0.006,
+      "n_A": 424,
+      "m": 2000,
+      "x": 434,
+      "p_hat": 0.217,
+      "ci_lower": 0.1994864517694746,
+      "ci_upper": 0.23559859700879915,
+      "mean_fragments": 742.218,
+      "mean_crossing": 254.942,
+      "mean_crossing_rate": 0.6012783018867924,
+      "mean_edges": 228.347,
+      "mean_gjk": 230.1665,
+      "elapsed_s": 355.1469590000005
+    },
+    {
+      "phi": 0.007,
+      "n_A": 495,
+      "m": 2000,
+      "x": 936,
+      "p_hat": 0.468,
+      "ci_lower": 0.44621409088816416,
+      "ci_upper": 0.48990860013976795,
+      "mean_fragments": 866.1445,
+      "mean_crossing": 297.252,
+      "mean_crossing_rate": 0.6005090909090909,
+      "mean_edges": 311.4085,
+      "mean_gjk": 313.9455,
+      "elapsed_s": 525.3971559000004
+    },
+    {
+      "phi": 0.01,
+      "n_A": 707,
+      "m": 2000,
+      "x": 1989,
+      "p_hat": 0.9945,
+      "ci_lower": 0.9901779372047981,
+      "ci_upper": 0.9969261030041899,
+      "mean_fragments": 1237.399,
+      "mean_crossing": 424.988,
+      "mean_crossing_rate": 0.601114568599717,
+      "mean_edges": 636.155,
+      "mean_gjk": 641.419,
+      "elapsed_s": 961.3604345000008
+    }
+  ],
+  "wall_elapsed_s": 269.4744461
+}

@@ -1,17 +1,5 @@
-# 本绘图程序在AI工具辅助下完成
-# AI工具名称：DeepSeek-V4-Flash，版本 / 型号：DeepSeek-V4-Flash-0731，开发机构 / 公司：深度求索（DeepSeek），版本发布日期：2026-07-31
-
-"""问题3配图：临界区放大图（图2）。
-
-N=600~640 区间放大视图：外切（蓝实线，几何下界）与内接（绿虚线，几何上界）
-导通概率曲线及 95% Wilson 区间带，90% 要求线，[613, 616] 经验夹逼底纹，
-三条临界竖线（613 外切点估计 / 616 内接点估计与外切保守 / 619 内接保守）。
-上轴体积分数刻度由 CSV 行直接对应（不插值）。
-数据来源：Q3/results/question3_solid_curve.csv（M=10000，K=32，
-seed=20260808+i）+ question3_solid_summary.json。
-输出：Q3/figures/问题3_临界区放大图.png + .pdf（300dpi，双格式），
-并复制入 docs/appendix/figures/ 图池（competition-record 步骤 2+4）。
-"""
+# 本程序及代码是在AI工具辅助下完成的
+# AI工具名称：DeepSeek‑V4‑Flash，版本 / 型号：DeepSeek‑V4‑Flash‑0731，开发机构 / 公司：深度求索（DeepSeek），版本发布日期：2026‑07‑31
 
 import csv
 import json
@@ -27,7 +15,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 _Q3 = os.path.dirname(os.path.abspath(__file__))
-# 与模板 plot_style 同款中文样式（内联，避免依赖 templates 路径）
 sys_fonts = ['SimHei', 'Microsoft YaHei', 'Noto Sans CJK SC']
 plt.rcParams['font.sans-serif'] = sys_fonts
 plt.rcParams['axes.unicode_minus'] = False
@@ -44,7 +31,6 @@ N_SAFE = 619
 
 
 def save_pair(fig, stem):
-    """competition-record 步骤 2+4：png/pdf 双格式保存 + 复制入图池。"""
     os.makedirs(FIG_DIR, exist_ok=True)
     os.makedirs(APPENDIX_FIG_DIR, exist_ok=True)
     base = os.path.join(FIG_DIR, stem)
@@ -84,7 +70,7 @@ def main():
     inner_lo = np.array([curve[n]['inner_ci_lower'] for n in n_vals])
     inner_hi = np.array([curve[n]['inner_ci_upper'] for n in n_vals])
 
-    # 数值断言（与报告 §4.2 表一致）
+
     assert abs(curve[N_POINT_OUTER]['outer_p_hat'] - 0.9009) < 1e-4, \
         f"p_hat(613)={curve[N_POINT_OUTER]['outer_p_hat']}"
     assert abs(curve[N_POINT_INNER]['inner_p_hat'] - 0.9005) < 1e-4, \
@@ -117,7 +103,7 @@ def main():
     ax.grid(True, linestyle='--', alpha=0.5)
     ax.legend(loc='lower right', fontsize=9)
 
-    # 上轴体积分数：与 N 行一一对应（取每 5 根一个刻度）
+
     ax_top = ax.twiny()
     tick_ns = np.arange(N_LO, N_HI + 1, 10)
     tick_phis = [curve[n]['phi_percent'] for n in tick_ns]

@@ -1,13 +1,5 @@
 # 本程序及代码是在AI工具辅助下完成的
-"""问题3完整实体核心：逐根加入并记录首次导通数量。
-
-圆柱分别以横截面内接/外切正多棱柱近似。对于同一组随机圆柱序列，外切
-模型应不晚于真实圆柱导通，内接模型应不早于真实圆柱导通，因此
-
-    N_outer <= N_exact <= N_inner.
-
-边界平移后的同源片段不自动电连接，仍按实际表面距离判断。
-"""
+# AI工具名称：DeepSeek‑V4‑Flash，版本 / 型号：DeepSeek‑V4‑Flash‑0731，开发机构 / 公司：深度求索（DeepSeek），版本发布日期：2026‑07‑31
 
 import os
 import sys
@@ -22,9 +14,9 @@ for path in (Q2_DIR, Q1_DIR):
     if path not in sys.path:
         sys.path.insert(0, path)
 
-import geometry as axis_geometry  # noqa: E402
-import solid_geometry as solid_geometry  # noqa: E402
-from core import UnionFind  # noqa: E402
+import geometry as axis_geometry
+import solid_geometry as solid_geometry
+from core import UnionFind
 
 
 def _group_fragment_indices(fragments, n_sources):
@@ -35,7 +27,6 @@ def _group_fragment_indices(fragments, n_sources):
 
 
 def _candidate_pairs(new_indices, old_count, fragments, delta):
-    """新片段与已有片段、以及新片段内部的安全候选对。"""
     pairs_i = []
     pairs_j = []
     if old_count:
@@ -84,7 +75,6 @@ def _candidate_pairs(new_indices, old_count, fragments, delta):
 
 def first_contact_n(c, u, h, n_sides=64, mode='inscribed',
                     delta=axis_geometry.DELTA):
-    """单个有序圆柱样本首次导通时的完整介质数量。"""
     c = np.asarray(c, dtype=float)
     u = np.asarray(u, dtype=float)
     h = np.asarray(h, dtype=float)
@@ -153,7 +143,6 @@ def first_contact_n(c, u, h, n_sides=64, mode='inscribed',
 
 
 def paired_first_contacts(c, u, h, n_sides=64):
-    """同一样本的外切下端点与内接上端点。"""
     outer = first_contact_n(
         c, u, h, n_sides=n_sides, mode='circumscribed')
     inner = first_contact_n(
@@ -170,7 +159,6 @@ def paired_first_contacts(c, u, h, n_sides=64):
 
 
 def simulate_paired_trials(n_max, m=20, seed=42, n_sides=64):
-    """M 个共同随机样本上的实体首次导通上下界。"""
     rng = np.random.default_rng(seed)
     outer_contacts = []
     inner_contacts = []
