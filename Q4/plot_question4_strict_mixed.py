@@ -8,9 +8,10 @@
 """问题4 论文配图：严格混合实体复核内界/外界夹逼（png+pdf 双格式）。
 
 图4：读取 Q4/results/question4_strict_mixed_candidates.csv（共同随机数 M=4000
-严格复核），对每个候选 (N_A, N_B) 绘制内界多面体与外界多面体的 95% Wilson 区间
-双横条 + 点估计，叠加 0.90 目标线，按严格判定着色（可靠不足=红 / 待定=橙 /
-可靠可行=绿），标注 (598,62) 严格排除与 (616,0) 最低可靠可行候选。
+严格复核，正式 8 候选），对每个候选 (N_A, N_B) 绘制内界多面体与外界多面体的
+95% Wilson 区间双横条 + 点估计，叠加 0.90 目标线，按严格判定着色（可靠不足=红
+/ 待定=橙 / 可靠可行=绿），标注 (598,62) 在联合口径下可靠不足；纯 A 保守推荐
+(619,0)（引用 Q3 M=10000 严格实体复核，不在混合候选重复检验）。
 
 输出：Q4/figures/问题4_严格实体复核夹逼.png + .pdf（300dpi，双格式），并复制入
 docs/appendix/figures/ 图池（competition-record 步骤 2+4）。
@@ -63,6 +64,10 @@ def load_audit(path):
                 'outer_p': float(r['outer_p_hat']),
                 'outer_lo': float(r['outer_ci_lower']),
                 'outer_hi': float(r['outer_ci_upper']),
+                'joint_inner_lo': float(r['joint_inner_ci_lower']),
+                'joint_inner_hi': float(r['joint_inner_ci_upper']),
+                'joint_outer_lo': float(r['joint_outer_ci_lower']),
+                'joint_outer_hi': float(r['joint_outer_ci_upper']),
                 'v': r['strict_verdict']})
     rows.sort(key=lambda r: r['cost'])
     return rows
@@ -94,20 +99,14 @@ def main():
         ax.text(r['outer_hi'] + 0.0015, yi,
                 f"({r['na']},{r['nb']})  {r['cost']:.3f} 元", va='center',
                 fontsize=8.5, color=VCOLOR[r['v']])
-    # 关键候选文字标注
+    # 关键候选文字标注：(598,62) 联合口径（16 区间 Bonferroni）下界仍 < 0.90
     for r in rows:
         if r['na'] == 598 and r['nb'] == 62:
             yi = y[rows.index(r)]
-            ax.annotate('外界上限 0.89644 < 0.90，严格排除',
+            ax.annotate(f'联合下界 {r["joint_inner_lo"]:.4f} < 0.90，可靠不足',
                         xy=(r['outer_hi'], yi), xytext=(r['outer_hi'] + 0.004,
                         yi + 1.15), fontsize=8.5, color=C_INSUF,
                         arrowprops=dict(arrowstyle='->', color=C_INSUF, lw=0.9))
-        if r['na'] == 616 and r['nb'] == 0:
-            yi = y[rows.index(r)]
-            ax.annotate('最低可靠可行候选', xy=(r['inner_lo'], yi),
-                        xytext=(r['inner_lo'] - 0.004, yi - 1.15),
-                        ha='right', fontsize=8.5, color=C_FEAS,
-                        arrowprops=dict(arrowstyle='->', color=C_FEAS, lw=0.9))
     ax.axvline(P_TARGET, color='#111111', ls='--', lw=1.5,
                label='目标概率 $P=0.90$')
     ax.set_xlabel('导通概率（共同随机数 $M=4000$ 严格复核）')
@@ -117,7 +116,8 @@ def main():
     ax.grid(axis='x', alpha=0.25)
     fig.text(0.01, 0.01,
              'A 为 32 边内接/外切多棱柱，B 为三级细分二十面体内接/外切多面体；'
-             'B 单侧径向误差上界约 0.9098 nm；4000 次试验上下界违例为 0。',
+             'B 单侧径向误差上界约 0.9098 nm；4000 次试验上下界违例为 0。'
+             '纯 A 保守推荐 (619,0)（引用 Q3 M=10000 严格实体复核）。',
              fontsize=8, color='#444444')
     fig.tight_layout(rect=(0, 0.03, 1, 1))
 
