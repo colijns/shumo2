@@ -1,0 +1,41 @@
+2026-08-16 22:07:22 INFO [Case1] 点数=52（I=5 II=10 III=37），展开任务数 M=72
+2026-08-16 22:07:22 INFO [Case1] 下界：服务量=1，MST=626.831 km → MST下界=2，N_LB=2
+2026-08-16 22:09:22 INFO [Case1] 阶段1 N=2 预算=120s 建模=0.00s 约束=50 → 未找到全服务解（served=54/72，耗时 120.0s）
+2026-08-16 22:11:22 INFO [Case1] 阶段1 N=3 预算=120s 建模=0.00s 约束=50 → 未找到全服务解（served=66/72，耗时 120.0s）
+2026-08-16 22:13:22 INFO [Case1] 阶段1 N=4 预算=120s 建模=0.00s 约束=50 → 可行 served=72/72（耗时 120.0s）
+2026-08-16 22:18:22 INFO [Case1] 阶段2 N=4 预算=300s 策略=ALL_UNPERFORMED 目标=153926（耗时 300.0s，收敛点 10727 个）
+2026-08-16 22:18:22 INFO [Case1] 结果：N=4（N_LB=2，BEST_FEASIBLE_NOT_PROVEN）Tmax=8.6819 h Tmin=8.2186 h
+2026-08-16 22:18:22 INFO [Case1] 解档案已写入 D:\code_warehouse\Projects\shumo3\outputs\workbooks\q1_solution_Case1.json
+2026-08-16 22:18:22 INFO [Case2] 点数=99（I=10 II=20 III=69），展开任务数 M=139
+2026-08-16 22:18:22 INFO [Case2] 下界：服务量=2，MST=112.194 km → MST下界=2，N_LB=2
+2026-08-16 22:20:22 INFO [Case2] 阶段1 N=2 预算=120s 建模=0.00s 约束=100 → 可行 served=139/139（耗时 120.0s）
+2026-08-16 22:25:22 INFO [Case2] 阶段2 N=2 预算=300s 策略=ALL_UNPERFORMED 目标=81923（耗时 300.0s，收敛点 1008 个）
+2026-08-16 22:25:22 INFO [Case2] 结果：N=2（N_LB=2，PROVEN_BY_LOWER_BOUND）Tmax=7.6000 h Tmin=7.5564 h
+2026-08-16 22:25:22 INFO [Case2] 解档案已写入 D:\code_warehouse\Projects\shumo3\outputs\workbooks\q1_solution_Case2.json
+2026-08-16 22:25:22 INFO [Case3] 点数=100（I=10 II=20 III=70），展开任务数 M=140
+2026-08-16 22:25:22 INFO [Case3] 下界：服务量=2，MST=701.314 km → MST下界=3，N_LB=3
+2026-08-16 22:27:22 INFO [Case3] 阶段1 N=3 预算=120s 建模=0.00s 约束=100 → 未找到全服务解（served=108/140，耗时 120.0s）
+2026-08-16 22:29:22 INFO [Case3] 阶段1 N=4 预算=120s 建模=0.00s 约束=100 → 未找到全服务解（served=131/140，耗时 120.0s）
+2026-08-16 22:31:22 INFO [Case3] 阶段1 N=5 预算=120s 建模=0.00s 约束=100 → 可行 served=140/140（耗时 120.0s）
+2026-08-16 22:36:22 INFO [Case3] 阶段2 N=5 预算=300s 策略=ALL_UNPERFORMED 目标=174059（耗时 300.0s，收敛点 4612 个）
+2026-08-16 22:36:22 INFO [Case3] 结果：N=5（N_LB=3，BEST_FEASIBLE_NOT_PROVEN）Tmax=8.0839 h Tmin=8.0111 h
+2026-08-16 22:36:22 INFO [Case3] 解档案已写入 D:\code_warehouse\Projects\shumo3\outputs\workbooks\q1_solution_Case3.json
+2026-08-16 22:36:22 INFO [Case4] 点数=130（I=13 II=26 III=91），展开任务数 M=182
+2026-08-16 22:36:22 INFO [Case4] 下界：服务量=2，MST=518.891 km → MST下界=3，N_LB=3
+2026-08-16 22:38:22 INFO [Case4] 阶段1 N=3 预算=120s 建模=0.00s 约束=130 → 未找到全服务解（served=154/182，耗时 120.0s）
+2026-08-16 22:40:22 INFO [Case4] 阶段1 N=4 预算=120s 建模=0.00s 约束=130 → 可行 served=182/182（耗时 120.0s）
+2026-08-16 22:45:22 INFO [Case4] 阶段2 N=4 预算=300s 策略=ALL_UNPERFORMED 目标=150545（耗时 300.0s，收敛点 3103 个）
+2026-08-16 22:45:22 INFO [Case4] 结果：N=4（N_LB=3，BEST_FEASIBLE_NOT_PROVEN）Tmax=8.3811 h Tmin=8.3258 h
+2026-08-16 22:45:22 INFO [Case4] 解档案已写入 D:\code_warehouse\Projects\shumo3\outputs\workbooks\q1_solution_Case4.json
+2026-08-16 22:45:23 INFO result1.xlsx 已写入 D:\code_warehouse\Projects\shumo3\outputs\workbooks\result1.xlsx
+2026-08-16 22:45:23 INFO summary_q1.xlsx 已写入 D:\code_warehouse\Projects\shumo3\outputs\workbooks\summary_q1.xlsx
+2026-08-16 22:45:23 INFO [Case1] 点数=52（I=5 II=10 III=37），展开任务数 M=72
+2026-08-16 22:45:23 INFO [Case2] 点数=99（I=10 II=20 III=69），展开任务数 M=139
+2026-08-16 22:45:23 INFO [Case3] 点数=100（I=10 II=20 III=70），展开任务数 M=140
+2026-08-16 22:45:23 INFO [Case4] 点数=130（I=13 II=26 III=91），展开任务数 M=182
+2026-08-16 22:45:23 INFO 校验报告已写入 D:\code_warehouse\Projects\shumo3\outputs\workbooks\q1_verification_report.md（违规 0 条）
+2026-08-16 22:45:23 INFO 表2（论文誊抄用）：
+2026-08-16 22:45:23 INFO   Case1：N=4，Tmax=8.6819 h，Tmin=8.2186 h，BEST_FEASIBLE_NOT_PROVEN
+2026-08-16 22:45:23 INFO   Case2：N=2，Tmax=7.6000 h，Tmin=7.5564 h，PROVEN_BY_LOWER_BOUND
+2026-08-16 22:45:23 INFO   Case3：N=5，Tmax=8.0839 h，Tmin=8.0111 h，BEST_FEASIBLE_NOT_PROVEN
+2026-08-16 22:45:23 INFO   Case4：N=4，Tmax=8.3811 h，Tmin=8.3258 h，BEST_FEASIBLE_NOT_PROVEN

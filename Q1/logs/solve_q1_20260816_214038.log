@@ -1,0 +1,15 @@
+2026-08-16 21:40:38 INFO [Case1] 点数=52（I=5 II=10 III=37），展开任务数 M=72
+2026-08-16 21:40:38 INFO [Case1] 下界：服务量=1，MST=626.831 km → MST下界=2，N_LB=2
+2026-08-16 21:40:38 INFO [Case1] N=2 首解策略 PARALLEL_CHEAPEST_INSERTION 未找到解，尝试下一策略
+2026-08-16 21:40:38 INFO [Case1] N=2 首解策略 SAVINGS 未找到解，尝试下一策略
+2026-08-16 21:42:38 INFO [Case1] N=2 首解策略 PATH_CHEAPEST_ARC 未找到解，尝试下一策略
+2026-08-16 21:42:38 INFO [Case1] 阶段1 N=2 预算=120s 建模=0.00s 约束=50 → 无可行解（耗时 120.1s）
+2026-08-16 21:42:39 INFO [Case1] N=3 首解策略 PARALLEL_CHEAPEST_INSERTION 未找到解，尝试下一策略
+2026-08-16 21:42:39 INFO [Case1] N=3 首解策略 SAVINGS 未找到解，尝试下一策略
+2026-08-16 21:44:39 INFO [Case1] N=3 首解策略 PATH_CHEAPEST_ARC 未找到解，尝试下一策略
+2026-08-16 21:44:39 INFO [Case1] 阶段1 N=3 预算=120s 建模=0.00s 约束=50 → 无可行解（耗时 120.2s）
+2026-08-16 21:44:39 INFO [Case1] N=4 首解策略 PARALLEL_CHEAPEST_INSERTION 未找到解，尝试下一策略
+2026-08-16 21:44:39 INFO [Case1] N=4 首解策略 SAVINGS 未找到解，尝试下一策略
+2026-08-16 21:46:39 INFO [Case1] N=4 首解策略 PATH_CHEAPEST_ARC 未找到解，尝试下一策略
+2026-08-16 21:46:39 INFO [Case1] 阶段1 N=4 预算=120s 建模=0.00s 约束=50 → 无可行解（耗时 120.3s）
+2026-08-16 21:48:39 INFO [Case1] 阶段1 N=5 预算=120s 建模=0.00s 约束=50 → 可行（耗时 120.0s）

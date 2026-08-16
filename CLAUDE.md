@@ -9,8 +9,8 @@ This file provides guidance to Claude Code CLI when working with code in this re
 ## 环境与基本命令
 
 - **Python 环境**: `math` (conda) — 每个新 shell 先 `conda activate math`（非交互 shell 用全路径 `E:\Software\Scoop\apps\miniconda3\current\envs\math\python.exe`）
-- **安装依赖**: `pip install -r requirements.txt` (核心: numpy/scipy/pandas/matplotlib/seaborn/scikit-learn/statsmodels/networkx/pytest)
-- **可选依赖**: PuLP（整数规划）、pyecharts（交互式地图）— 用到再装
+- **安装依赖**: `pip install -r requirements.txt` (当前仅列 numpy/pandas/matplotlib/seaborn/openpyxl/pulp；scipy、statsmodels、networkx、scikit-learn 等模板实际用到，但 requirements.txt 未列出 — 需用时先补装)
+- **可选依赖**: pyecharts（交互式地图）— 用到再装
 - **运行 demo**: `python <模块路径>`（每个 `.py` 自带合成数据 demo）
 - **跑测试**: `python -m pytest tests/ -q`（全量）、`python -m pytest tests/test_<模块>.py -v`（单模块）
 - **按名筛选测试**: `python -m pytest tests/ -k <关键词>`
@@ -73,7 +73,11 @@ D:\code_warehouse\Projects\shumo3/
 
 ## 当前赛题
 
-题目原文见 `docs/题目.md`（待填充），附件数据见 `attachment/`（待放入）。
+**A题：低空经济背景下的多无人机协同巡检路径优化**（多目标路径优化 / VRP 类题）。题目原文见 `docs/题目.md`，附件数据在 `attachment/`：
+- `附件1.xlsx` / `附件2.xlsx`：赛题数据（目标点坐标、巡检等级等）
+- `result1.xlsx` ~ `result3.xlsx`：对应问题 1~3 的输出结果表（提交格式样例）
+
+工作区：尚无题号目录，开始解题时按 `Q1/`、`Q2/`、`Q3/` 建目录，从 `templates/03_optimization/` 复制相关模块。
 
 ## 工作流
 
