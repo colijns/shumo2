@@ -5,7 +5,13 @@ import json
 from pathlib import Path
 from typing import Sequence
 
-from .io import atomic_write_json, build_solution_archive, validate_solution_archive, write_result_workbook
+from .io import (
+    atomic_write_json,
+    build_solution_archive,
+    validate_result_workbook,
+    validate_solution_archive,
+    write_result_workbook,
+)
 from .q1_adapter import FLEET_SIZE_BY_CASE, load_problem
 from .search import run_strict_search
 
@@ -71,18 +77,21 @@ def _verify(options: argparse.Namespace) -> int:
     except (OSError, json.JSONDecodeError):
         return 1
     cases = manifest.get("cases") if isinstance(manifest, dict) else None
-    if manifest.get("schema_version") != "q2-manifest-v1" or not isinstance(cases, dict) or set(cases) != set(FLEET_SIZE_BY_CASE):
+    if not isinstance(manifest, dict) or manifest.get("schema_version") != "q2-manifest-v1" or not isinstance(cases, dict) or set(cases) != set(FLEET_SIZE_BY_CASE):
         return 1
     archive_dir = options.parent_archive_dir or root / "outputs" / "workbooks" / "baseline_20260816"
     attachment = options.attachment or root / "attachment" / "附件1.xlsx"
     try:
+        solutions = {}
         for case_name in FLEET_SIZE_BY_CASE:
             problem = load_problem(case_name, attachment_path=attachment, archive_path=archive_dir / f"q1_solution_{case_name}.json")
             archive_path = output_root / "q2" / "strict" / f"{case_name}.json"
             archive = json.loads(archive_path.read_text(encoding="utf-8"))
-            validate_solution_archive(problem, archive)
-        if not (output_root / "result2.xlsx").is_file():
-            return 1
+            if archive != cases[case_name]:
+                return 1
+            candidate = validate_solution_archive(problem, archive)
+            solutions[case_name] = (problem, candidate)
+        validate_result_workbook(output_root / "result2.xlsx", solutions)
     except (OSError, ValueError, json.JSONDecodeError):
         return 1
     return 0

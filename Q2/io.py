@@ -114,13 +114,40 @@ def write_result_workbook(path: str | Path, solutions: Mapping[str, tuple[Proble
         raise
 
 
+def validate_result_workbook(
+    path: str | Path, solutions: Mapping[str, tuple[ProblemData, ScoredCandidate]]
+) -> None:
+    """Independently compare every official workbook point cell to strict routes."""
+    import pandas as pd
+
+    try:
+        workbook = pd.ExcelFile(path)
+    except (OSError, ValueError) as exc:
+        raise ValueError("result workbook cannot be read") from exc
+    if workbook.sheet_names != list(solutions):
+        raise ValueError("result workbook sheet set or order mismatch")
+    for case_name, (problem, candidate) in solutions.items():
+        actual = pd.read_excel(path, sheet_name=case_name)
+        expected = _result_frame(problem, candidate)
+        if actual.columns.tolist() != expected.columns.tolist() or not actual.equals(expected):
+            raise ValueError(f"result workbook {case_name} route mismatch")
+
 def _result_frame(problem: ProblemData, candidate: ScoredCandidate):
     import pandas as pd
 
     point_by_task = {task.task_id: task.point_id for task in problem.tasks}
     point_routes = [tuple(point_by_task[task_id] for task_id in route) for route in candidate.routes]
     width = max(len(route) for route in point_routes)
-    rows = [{"UAV ID": index, **{f"{column}th Inspection Point": route[column - 1] if column <= len(route) else None for column in range(1, width + 1)}} for index, route in enumerate(point_routes, 1)]
+    rows = [
+        {
+            "UAV ID": index,
+            **{
+                f"{column}th Inspection Point": route[column - 1] if column <= len(route) else None
+                for column in range(1, width + 1)
+            },
+        }
+        for index, route in enumerate(point_routes, 1)
+    ]
     return pd.DataFrame(rows)
 
 
