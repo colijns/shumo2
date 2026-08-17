@@ -1,0 +1,4 @@
+Case1: reused verified archive (S_max=31255s delta=102s sum_T=124768s wait=0s dist=1575.654km)
+Case2: S_max=42933s delta=0s sum_T=85866s wait=1659s dist=648.276km
+Case3: S_max=38554s delta=572s sum_T=190906s wait=0s dist=2273.871km
+Case4: S_max=35899s delta=49s sum_T=143472s wait=195s dist=1353.347km
