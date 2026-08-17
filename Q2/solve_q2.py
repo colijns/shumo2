@@ -81,11 +81,14 @@ def _verify(options: argparse.Namespace) -> int:
         return 1
     archive_dir = options.parent_archive_dir or root / "outputs" / "workbooks" / "baseline_20260816"
     attachment = options.attachment or root / "attachment" / "附件1.xlsx"
+    strict_dir = output_root / "q2" / "strict"
+    if {path.stem for path in strict_dir.glob("*.json")} != set(FLEET_SIZE_BY_CASE):
+        return 1
     try:
         solutions = {}
         for case_name in FLEET_SIZE_BY_CASE:
             problem = load_problem(case_name, attachment_path=attachment, archive_path=archive_dir / f"q1_solution_{case_name}.json")
-            archive_path = output_root / "q2" / "strict" / f"{case_name}.json"
+            archive_path = strict_dir / f"{case_name}.json"
             archive = json.loads(archive_path.read_text(encoding="utf-8"))
             if archive != cases[case_name]:
                 return 1
