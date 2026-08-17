@@ -52,5 +52,10 @@ def test_formal_run_verifies_epsilon_and_pareto_outputs_then_detects_tampering(t
     epsilon_case.write_text(json.dumps(archive), encoding="utf-8")
     assert main(["--verify", "--repository-root", str(source), "--output-root", str(output)]) == 1
 
+    archive["epsilon"] = "0.005"
+    archive["epsilon_bound_s"] = archive["epsilon_bound_s"] + 1
+    epsilon_case.write_text(json.dumps(archive), encoding="utf-8")
+    assert main(["--verify", "--repository-root", str(source), "--output-root", str(output)]) == 1
+
     (output / "q2" / "pareto" / "Case2.json").unlink()
     assert main(["--verify", "--repository-root", str(source), "--output-root", str(output)]) == 1

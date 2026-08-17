@@ -1,4 +1,4 @@
-"""Deterministic strict local search for Q2 routes."""
+"""Deterministic local search for Q2 routes (strict and epsilon-constrained)."""
 
 from dataclasses import dataclass
 from hashlib import sha256
@@ -7,14 +7,13 @@ from random import Random
 
 from .balance_core import (
     ScoredCandidate,
-    accept_strict_improvement,
     deterministic_two_opt,
     relocate,
     score_candidate,
     swap,
 )
-from .domain import ProblemData
-from .metrics import Routes
+from .domain import CAP_S, ProblemData
+from .metrics import Routes, balanced_key
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,27 +43,67 @@ def _seed_component(value: int | str) -> bytes:
 
 
 def run_strict_search(problem: ProblemData, *, evaluation_limit: int, seed: int) -> StrictSearchResult:
-    """Run deterministic first-improvement VND under fixed evaluation budget."""
+    """Run deterministic first-improvement VND under the strict lexicographic key."""
+    return _run_search(
+        problem,
+        key_of=lambda candidate: candidate.strict_key,
+        bound_s=CAP_S,
+        namespace="strict",
+        evaluation_limit=evaluation_limit,
+        seed=seed,
+    )
+
+
+def run_epsilon_search(problem: ProblemData, *, bound_s: int, evaluation_limit: int, seed: int) -> StrictSearchResult:
+    """Run deterministic balance-first search under a fixed Tmax ceiling."""
+    if type(bound_s) is not int or not 1 <= bound_s <= CAP_S:
+        raise ValueError("bound_s must be an exact integer in 1..CAP_S")
+    return _run_search(
+        problem,
+        key_of=lambda candidate: balanced_key(
+            candidate.metrics.Tmax_s, candidate.metrics.delta_s, candidate.metrics.sum_T_s, candidate.routes
+        ),
+        bound_s=bound_s,
+        namespace="epsilon",
+        evaluation_limit=evaluation_limit,
+        seed=seed,
+    )
+
+
+def _run_search(
+    problem: ProblemData,
+    *,
+    key_of,
+    bound_s: int,
+    namespace: str,
+    evaluation_limit: int,
+    seed: int,
+) -> StrictSearchResult:
+    """Shared first-improvement VND: accept only feasible bound-respecting key improvements."""
     if type(evaluation_limit) is not int or evaluation_limit < 0:
         raise ValueError("evaluation_limit must be a nonnegative exact integer")
     if type(seed) is not int:
         raise ValueError("seed must be an exact integer")
-    randomizer = Random(derive_seed(seed, problem.case_name, "strict"))
+    if type(namespace) is not str:
+        raise ValueError("namespace must be a string")
+    randomizer = Random(derive_seed(seed, problem.case_name, namespace))
     initial = score_candidate(problem, problem.routes)
     if initial is None:
         raise ValueError("problem initial routes must be feasible")
+    if initial.metrics.Tmax_s > bound_s:
+        raise ValueError("problem initial routes violate the Tmax bound")
     initial = score_candidate(problem, _normalize_all_routes(problem, initial.routes)) or initial
     incumbent = working = initial
     evaluations, improvements = 0, 0
     while evaluations < evaluation_limit:
-        proposal, spent = _first_improvement(problem, working, evaluation_limit - evaluations)
+        proposal, spent = _first_improvement(problem, working, key_of, bound_s, evaluation_limit - evaluations)
         evaluations += spent
         if proposal is not None:
             working = proposal
-            if working.strict_key < incumbent.strict_key:
+            if key_of(working) < key_of(incumbent):
                 incumbent, improvements = working, improvements + 1
             continue
-        perturbed, spent = _perturb(problem, working.routes, randomizer, evaluation_limit - evaluations)
+        perturbed, spent = _perturb(problem, working.routes, randomizer, bound_s, evaluation_limit - evaluations)
         evaluations += spent
         if perturbed is None:
             break
@@ -77,7 +116,11 @@ def _normalize_all_routes(problem: ProblemData, routes: Routes) -> Routes:
 
 
 def _first_improvement(
-    problem: ProblemData, incumbent: ScoredCandidate, remaining: int
+    problem: ProblemData,
+    incumbent: ScoredCandidate,
+    key_of,
+    bound_s: int,
+    remaining: int,
 ) -> tuple[ScoredCandidate | None, int]:
     evaluations = 0
     for proposal in _ordered_move_candidates(problem, incumbent.routes):
@@ -85,15 +128,30 @@ def _first_improvement(
             break
         normalized = _normalize_all_routes(problem, proposal)
         evaluations += 1
-        improved = accept_strict_improvement(incumbent, problem, normalized)
+        improved = _accept_candidate(incumbent, problem, key_of, bound_s, normalized)
         if improved is not None:
             return improved, evaluations
     return None, evaluations
 
 
+def _accept_candidate(
+    incumbent: ScoredCandidate,
+    problem: ProblemData,
+    key_of,
+    bound_s: int,
+    routes: Routes,
+) -> ScoredCandidate | None:
+    """Return only a fully replayed, bound-respecting key improvement over incumbent."""
+    candidate = score_candidate(problem, routes)
+    if candidate is None or candidate.metrics.Tmax_s > bound_s:
+        return None
+    if key_of(candidate) >= key_of(incumbent):
+        return None
+    return candidate
+
 
 def _perturb(
-    problem: ProblemData, routes: Routes, randomizer: Random, remaining: int
+    problem: ProblemData, routes: Routes, randomizer: Random, bound_s: int, remaining: int
 ) -> tuple[ScoredCandidate | None, int]:
     if remaining == 0:
         return None, 0
@@ -103,6 +161,8 @@ def _perturb(
     proposal = proposals[randomizer.randrange(len(proposals))]
     normalized = _normalize_all_routes(problem, proposal)
     candidate = score_candidate(problem, normalized)
+    if candidate is None or candidate.metrics.Tmax_s > bound_s:
+        return None, 1
     return candidate, 1
 
 

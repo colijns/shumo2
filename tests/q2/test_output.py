@@ -34,21 +34,48 @@ def test_epsilon_archive_must_replay_with_declared_bound():
     problem = _problem()
     candidate = score_candidate(problem, problem.routes)
     assert candidate is not None
+    bound_s = epsilon_bound(candidate.metrics.Tmax_s, "0.005")
 
-    archive = build_solution_archive(problem, candidate, track="epsilon_formal", epsilon="0.005")
+    archive = build_solution_archive(
+        problem, candidate, track="epsilon_formal", epsilon="0.005", epsilon_bound_s=bound_s
+    )
 
-    assert validate_solution_archive(problem, archive) == candidate
-    assert candidate.metrics.Tmax_s <= epsilon_bound(candidate.metrics.Tmax_s, "0.005")
+    assert validate_solution_archive(problem, archive, strict_Tmax_s=candidate.metrics.Tmax_s) == candidate
+    assert candidate.metrics.Tmax_s <= bound_s
 
 
 def test_epsilon_archive_rejects_invalid_epsilon_label():
     problem = _problem()
     candidate = score_candidate(problem, problem.routes)
     assert candidate is not None
-    archive = build_solution_archive(problem, candidate, track="epsilon_formal", epsilon="bad")
+    archive = build_solution_archive(
+        problem, candidate, track="epsilon_formal", epsilon="bad", epsilon_bound_s=1
+    )
 
     with pytest.raises(ValueError, match="epsilon"):
-        validate_solution_archive(problem, archive)
+        validate_solution_archive(problem, archive, strict_Tmax_s=candidate.metrics.Tmax_s)
+
+
+def test_epsilon_archive_rejects_tampered_bound_and_out_of_bound_candidate():
+    problem = _problem()
+    candidate = score_candidate(problem, problem.routes)
+    assert candidate is not None
+    bound_s = epsilon_bound(candidate.metrics.Tmax_s, "0.005")
+    archive = build_solution_archive(
+        problem, candidate, track="epsilon_formal", epsilon="0.005", epsilon_bound_s=bound_s
+    )
+
+    archive["epsilon_bound_s"] = bound_s + 1
+    with pytest.raises(ValueError, match="epsilon_bound_s"):
+        validate_solution_archive(problem, archive, strict_Tmax_s=candidate.metrics.Tmax_s)
+
+    archive["epsilon_bound_s"] = bound_s
+    with pytest.raises(ValueError, match="strict"):
+        validate_solution_archive(problem, archive, strict_Tmax_s=None)
+
+    archive["epsilon_bound_s"] = 1
+    with pytest.raises(ValueError, match="violates"):
+        validate_solution_archive(problem, archive, strict_Tmax_s=1)
 
 
 def test_result_workbook_contains_only_case_sheets_with_point_sequences(tmp_path):

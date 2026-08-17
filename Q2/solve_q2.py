@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Sequence
 
-from .epsilon_state import EPSILON_VALUES, create_dual_track_state
+from .epsilon_state import EPSILON_VALUES, create_dual_track_state, propagate_candidate
 from .io import (
     atomic_write_json,
     build_solution_archive,
@@ -15,7 +15,7 @@ from .io import (
 )
 from .metrics import epsilon_bound
 from .q1_adapter import FLEET_SIZE_BY_CASE, load_problem
-from .search import run_strict_search
+from .search import run_epsilon_search, run_strict_search
 
 DEFAULT_SEED = 42
 DEFAULT_EVALUATION_LIMIT = 2_000
@@ -30,6 +30,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output-root", type=Path)
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
     parser.add_argument("--evaluation-limit", type=int, default=DEFAULT_EVALUATION_LIMIT)
+    parser.add_argument("--epsilon-evaluation-limit", type=int, default=None)
     parser.add_argument("--smoke", action="store_true")
     parser.add_argument("--verify", action="store_true")
     return parser
@@ -68,6 +69,14 @@ def _run(options: argparse.Namespace) -> int:
     for case_name, archive in archives.items():
         problem, candidate = solutions[case_name]
         state = create_dual_track_state(candidate)
+        for epsilon in EPSILON_VALUES:
+            epsilon_result = run_epsilon_search(
+                problem,
+                bound_s=epsilon_bound(candidate.metrics.Tmax_s, epsilon),
+                evaluation_limit=options.epsilon_evaluation_limit or options.evaluation_limit,
+                seed=options.seed,
+            )
+            state = propagate_candidate(state, epsilon_result.incumbent)
         pareto_archives[case_name] = [
             build_solution_archive(
                 problem,
@@ -83,6 +92,7 @@ def _run(options: argparse.Namespace) -> int:
                 incumbent.candidate,
                 track="epsilon_formal",
                 epsilon=str(incumbent.epsilon),
+                epsilon_bound_s=incumbent.bound_s,
             )
     for case_name, archive in archives.items():
         atomic_write_json(strict_dir / f"{case_name}.json", archive)
@@ -148,14 +158,14 @@ def _verify_epsilon_outputs(manifest: dict, solutions: dict, epsilon_root: Path)
         epsilon_dir = epsilon_root / _epsilon_dir(epsilon)
         if {path.stem for path in epsilon_dir.glob("*.json")} != set(FLEET_SIZE_BY_CASE):
             return False
-        for case_name, (problem, _) in solutions.items():
+        for case_name, (problem, strict_candidate) in solutions.items():
             archive = json.loads((epsilon_dir / f"{case_name}.json").read_text(encoding="utf-8"))
             if archive != case_archives[case_name]:
                 return False
-            candidate = validate_solution_archive(problem, archive)
+            candidate = validate_solution_archive(
+                problem, archive, strict_Tmax_s=strict_candidate.metrics.Tmax_s
+            )
             if archive.get("epsilon") != str(epsilon) or archive.get("track") != "epsilon_formal":
-                return False
-            if candidate.metrics.Tmax_s > epsilon_bound(candidate.metrics.Tmax_s, epsilon):
                 return False
     return True
 
@@ -185,9 +195,9 @@ def _manifest(
 ) -> dict:
     return {
         "schema_version": "q2-manifest-v1",
-        "publication_scope": "strict-plus-observed-epsilon-projection",
-        "search_mode": "strict-local-search",
-        "epsilon_selection": "strict-incumbent-projection",
+        "publication_scope": "strict-plus-epsilon-search",
+        "search_mode": "strict-and-epsilon-local-search",
+        "epsilon_selection": "independent-epsilon-search",
         "cases": archives,
         "epsilon": {str(epsilon): case_archives for epsilon, case_archives in epsilon_archives.items()},
         "pareto_observed": pareto_archives,

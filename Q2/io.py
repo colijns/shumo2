@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from .balance_core import ScoredCandidate, score_candidate
-from .domain import ProblemData
+from .domain import CAP_S, ProblemData
 from .metrics import epsilon_bound
 
 CHECKPOINT_SCHEMA = "q2-checkpoint-v1"
@@ -56,7 +56,9 @@ def load_checkpoint(path: str | Path, problem_contract_sha256: str) -> dict[str,
     return payload
 
 
-def validate_solution_archive(problem: ProblemData, archive: Mapping[str, Any]) -> ScoredCandidate:
+def validate_solution_archive(
+    problem: ProblemData, archive: Mapping[str, Any], *, strict_Tmax_s: int | None = None
+) -> ScoredCandidate:
     """Independently replay one Q2 archive without trusting stored metrics."""
     _validate_solution_header(problem, archive)
     _validate_selection_metadata(archive)
@@ -65,7 +67,7 @@ def validate_solution_archive(problem: ProblemData, archive: Mapping[str, Any]) 
     if candidate is None:
         raise ValueError("archive task routes violate Q2 constraints")
     _validate_stored_metrics(archive.get("metrics"), candidate)
-    _validate_epsilon_bound(archive, candidate)
+    _validate_epsilon_bound(archive, candidate, strict_Tmax_s)
     return candidate
 
 
@@ -84,15 +86,22 @@ def _validate_selection_metadata(archive: Mapping[str, Any]) -> None:
         raise ValueError("pareto archive must declare observed-frontier label")
 
 
-def _validate_epsilon_bound(archive: Mapping[str, Any], candidate: ScoredCandidate) -> None:
+def _validate_epsilon_bound(
+    archive: Mapping[str, Any], candidate: ScoredCandidate, strict_Tmax_s: int | None
+) -> None:
     if archive.get("track") != "epsilon_formal":
         return
+    if type(strict_Tmax_s) is not int or not 1 <= strict_Tmax_s <= CAP_S:
+        raise ValueError("epsilon validation requires exact strict Tmax* in 1..CAP_S")
     label = archive.get("epsilon")
     try:
-        bound = epsilon_bound(candidate.metrics.Tmax_s, label)
+        expected = epsilon_bound(strict_Tmax_s, label)
     except (ValueError, TypeError) as exc:
         raise ValueError("archive epsilon bound cannot be computed") from exc
-    if candidate.metrics.Tmax_s > bound:
+    stored = archive.get("epsilon_bound_s")
+    if type(stored) is not int or stored != expected:
+        raise ValueError("archive epsilon_bound_s mismatch")
+    if candidate.metrics.Tmax_s > expected:
         raise ValueError("archive candidate violates epsilon bound")
 
 
@@ -102,6 +111,7 @@ def build_solution_archive(
     *,
     track: str = "strict",
     epsilon: str | None = None,
+    epsilon_bound_s: int | None = None,
 ) -> dict[str, Any]:
     """Build replayable strict-solution evidence from immutable candidate data."""
     if score_candidate(problem, candidate.routes) != candidate:
@@ -110,8 +120,16 @@ def build_solution_archive(
         raise ValueError("solution track is unsupported")
     if track == "strict" and epsilon is not None:
         raise ValueError("strict archive must not declare epsilon")
-    if track != "strict" and not isinstance(epsilon, str):
-        raise ValueError("epsilon archive must declare epsilon string")
+    if track == "epsilon_formal":
+        if not isinstance(epsilon, str):
+            raise ValueError("epsilon archive must declare epsilon string")
+        if type(epsilon_bound_s) is not int:
+            raise ValueError("epsilon archive must declare exact integer epsilon_bound_s")
+    else:
+        if epsilon_bound_s is not None:
+            raise ValueError("non-epsilon archives must not declare epsilon_bound_s")
+        if track != "strict" and not isinstance(epsilon, str):
+            raise ValueError("epsilon archive must declare epsilon string")
     metrics = candidate.metrics
     return {
         "schema_version": SOLUTION_SCHEMA,
@@ -119,6 +137,7 @@ def build_solution_archive(
         "fleet_size": problem.fleet_size,
         "track": track,
         "epsilon": epsilon,
+        **({"epsilon_bound_s": epsilon_bound_s} if track == "epsilon_formal" else {}),
         "parent_archive_sha256": problem.archive_sha256,
         "input": {
             "problem_contract_sha256": problem.problem_contract_sha256,
