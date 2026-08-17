@@ -47,6 +47,8 @@ def test_relocate_keeps_source_nonempty_and_rejects_adjacent_same_point():
     assert relocate(routes, 0, 0, 1, 1, tasks) == ((2,), (3, 1, 4))
     assert relocate(routes, 0, 0, 1, 0, repeated_point_tasks) is None
     assert relocate(((1,), (2, 3, 4)), 0, 0, 1, 0, tasks) is None
+    assert relocate(routes, 0.0, 0, 1, 0, tasks) is None
+    assert relocate(routes, True, 0, 1, 0, tasks) is None
     assert relocate(((1.0, 2), (3, 4)), 0, 0, 1, 0, tasks) is None
 
 
@@ -56,6 +58,8 @@ def test_swap_returns_only_legal_cross_route_exchange():
 
     assert swap(((1, 2), (3, 4)), 0, 0, 1, 0, tasks) == ((3, 2), (1, 4))
     assert swap(((1, 3), (2, 4, 5)), 0, 0, 1, 1, repeated_point_tasks + (Task(5, 10, 10.0, 0.0),)) is None
+    assert swap(((1, 2), (3, 4)), 0.0, 0, 1, 0, tasks) is None
+    assert swap(((1, 2), (3, 4)), 0, 0, True, 0, tasks) is None
     assert swap(((1, 2), (3, 4)), 0, 0, 0, 1, tasks) is None
 
 

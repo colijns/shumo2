@@ -32,7 +32,10 @@ def score_candidate(problem: ProblemData, routes: Iterable[Iterable[int]]) -> Sc
         return None
     if len(canonical) != problem.fleet_size or not is_legal_routes(canonical, problem.tasks):
         return None
-    metrics = replay_metrics(problem.tasks, problem.distance_km, problem.time_s, canonical)
+    try:
+        metrics = replay_metrics(problem.tasks, problem.distance_km, problem.time_s, canonical)
+    except (IndexError, ValueError):
+        return None
     if metrics.Tmax_s > CAP_S:
         return None
     return ScoredCandidate(canonical, metrics, strict_key(metrics.Tmax_s, metrics.delta_s, metrics.sum_T_s, canonical))
@@ -99,7 +102,9 @@ def relocate(
     if source_route == target_route or not _valid_route_index(canonical, source_route, target_route):
         return None
     source, target = canonical[source_route], canonical[target_route]
-    if len(source) <= 1 or not 0 <= source_index < len(source) or not 0 <= target_index <= len(target):
+    if len(source) <= 1 or not _valid_position(source_index, len(source)) or not _valid_position(
+        target_index, len(target), allow_end=True
+    ):
         return None
     task_id = source[source_index]
     new_source = source[:source_index] + source[source_index + 1 :]
@@ -124,7 +129,7 @@ def swap(
     if left_route == right_route or not _valid_route_index(canonical, left_route, right_route):
         return None
     left, right = canonical[left_route], canonical[right_route]
-    if not 0 <= left_index < len(left) or not 0 <= right_index < len(right):
+    if not _valid_position(left_index, len(left)) or not _valid_position(right_index, len(right)):
         return None
     new_left = left[:left_index] + (right[right_index],) + left[left_index + 1 :]
     new_right = right[:right_index] + (left[left_index],) + right[right_index + 1 :]
@@ -133,7 +138,13 @@ def swap(
 
 
 def _valid_route_index(routes: Routes, *indices: int) -> bool:
-    return all(0 <= index < len(routes) for index in indices)
+    return all(type(index) is int and 0 <= index < len(routes) for index in indices)
+
+
+def _valid_position(index: int, size: int, *, allow_end: bool = False) -> bool:
+    if type(index) is not int:
+        return False
+    return 0 <= index <= size if allow_end else 0 <= index < size
 
 
 def deterministic_two_opt(
