@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Sequence
 
+from .epsilon_state import EPSILON_VALUES, create_dual_track_state
 from .io import (
     atomic_write_json,
     build_solution_archive,
@@ -12,6 +13,7 @@ from .io import (
     validate_solution_archive,
     write_result_workbook,
 )
+from .metrics import epsilon_bound
 from .q1_adapter import FLEET_SIZE_BY_CASE, load_problem
 from .search import run_strict_search
 
@@ -61,10 +63,37 @@ def _run(options: argparse.Namespace) -> int:
     if options.smoke:
         return 0
     strict_dir = output_root / "q2" / "strict"
+    epsilon_archives = {epsilon: {} for epsilon in EPSILON_VALUES}
+    pareto_archives = {}
+    for case_name, archive in archives.items():
+        problem, candidate = solutions[case_name]
+        state = create_dual_track_state(candidate)
+        pareto_archives[case_name] = [
+            build_solution_archive(
+                problem,
+                observed,
+                track="pareto_balanced",
+                epsilon="observed-frontier",
+            )
+            for observed in state.pareto_frontier
+        ]
+        for incumbent in state.epsilon_incumbents:
+            epsilon_archives[incumbent.epsilon][case_name] = build_solution_archive(
+                problem,
+                incumbent.candidate,
+                track="epsilon_formal",
+                epsilon=str(incumbent.epsilon),
+            )
     for case_name, archive in archives.items():
         atomic_write_json(strict_dir / f"{case_name}.json", archive)
+    for epsilon, case_archives in epsilon_archives.items():
+        epsilon_dir = output_root / "q2" / "epsilon" / _epsilon_dir(epsilon)
+        for case_name, archive in case_archives.items():
+            atomic_write_json(epsilon_dir / f"{case_name}.json", archive)
+    for case_name, frontier in pareto_archives.items():
+        atomic_write_json(output_root / "q2" / "pareto" / f"{case_name}.json", {"frontier": frontier})
     write_result_workbook(output_root / "result2.xlsx", solutions)
-    atomic_write_json(output_root / "q2" / "reports" / "run_manifest.json", _manifest(archives))
+    atomic_write_json(output_root / "q2" / "reports" / "run_manifest.json", _manifest(archives, epsilon_archives, pareto_archives))
     return 0
 
 
@@ -77,7 +106,12 @@ def _verify(options: argparse.Namespace) -> int:
     except (OSError, json.JSONDecodeError):
         return 1
     cases = manifest.get("cases") if isinstance(manifest, dict) else None
-    if not isinstance(manifest, dict) or manifest.get("schema_version") != "q2-manifest-v1" or not isinstance(cases, dict) or set(cases) != set(FLEET_SIZE_BY_CASE):
+    if (
+        not isinstance(manifest, dict)
+        or manifest.get("schema_version") != "q2-manifest-v1"
+        or not isinstance(cases, dict)
+        or set(cases) != set(FLEET_SIZE_BY_CASE)
+    ):
         return 1
     archive_dir = options.parent_archive_dir or root / "outputs" / "workbooks" / "baseline_20260816"
     attachment = options.attachment or root / "attachment" / "附件1.xlsx"
@@ -88,20 +122,80 @@ def _verify(options: argparse.Namespace) -> int:
         solutions = {}
         for case_name in FLEET_SIZE_BY_CASE:
             problem = load_problem(case_name, attachment_path=attachment, archive_path=archive_dir / f"q1_solution_{case_name}.json")
-            archive_path = strict_dir / f"{case_name}.json"
-            archive = json.loads(archive_path.read_text(encoding="utf-8"))
+            archive = json.loads((strict_dir / f"{case_name}.json").read_text(encoding="utf-8"))
             if archive != cases[case_name]:
                 return 1
-            candidate = validate_solution_archive(problem, archive)
-            solutions[case_name] = (problem, candidate)
+            solutions[case_name] = (problem, validate_solution_archive(problem, archive))
         validate_result_workbook(output_root / "result2.xlsx", solutions)
+        if not _verify_epsilon_outputs(manifest, solutions, output_root / "q2" / "epsilon"):
+            return 1
+        if not _verify_pareto_outputs(manifest, solutions, output_root / "q2" / "pareto"):
+            return 1
     except (OSError, ValueError, json.JSONDecodeError):
         return 1
     return 0
 
 
-def _manifest(archives: dict[str, dict]) -> dict:
-    return {"schema_version": "q2-manifest-v1", "publication_scope": "strict-only", "cases": archives}
+def _verify_epsilon_outputs(manifest: dict, solutions: dict, epsilon_root: Path) -> bool:
+    expected_epsilons = {str(value) for value in EPSILON_VALUES}
+    manifest_epsilons = manifest.get("epsilon")
+    if not isinstance(manifest_epsilons, dict) or set(manifest_epsilons) != expected_epsilons:
+        return False
+    for epsilon in EPSILON_VALUES:
+        case_archives = manifest_epsilons[str(epsilon)]
+        if not isinstance(case_archives, dict) or set(case_archives) != set(FLEET_SIZE_BY_CASE):
+            return False
+        epsilon_dir = epsilon_root / _epsilon_dir(epsilon)
+        if {path.stem for path in epsilon_dir.glob("*.json")} != set(FLEET_SIZE_BY_CASE):
+            return False
+        for case_name, (problem, _) in solutions.items():
+            archive = json.loads((epsilon_dir / f"{case_name}.json").read_text(encoding="utf-8"))
+            if archive != case_archives[case_name]:
+                return False
+            candidate = validate_solution_archive(problem, archive)
+            if archive.get("epsilon") != str(epsilon) or archive.get("track") != "epsilon_formal":
+                return False
+            if candidate.metrics.Tmax_s > epsilon_bound(candidate.metrics.Tmax_s, epsilon):
+                return False
+    return True
+
+
+def _verify_pareto_outputs(manifest: dict, solutions: dict, pareto_root: Path) -> bool:
+    observed = manifest.get("pareto_observed")
+    if not isinstance(observed, dict) or set(observed) != set(FLEET_SIZE_BY_CASE):
+        return False
+    if {path.stem for path in pareto_root.glob("*.json")} != set(FLEET_SIZE_BY_CASE):
+        return False
+    for case_name, (problem, _) in solutions.items():
+        envelope = json.loads((pareto_root / f"{case_name}.json").read_text(encoding="utf-8"))
+        if not isinstance(envelope, dict) or not isinstance(envelope.get("frontier"), list):
+            return False
+        archives = [validate_solution_archive(problem, item) for item in envelope["frontier"]]
+        if envelope["frontier"] != observed[case_name]:
+            return False
+        if any(item.get("epsilon") != "observed-frontier" or item.get("track") != "pareto_balanced" for item in envelope["frontier"]):
+            return False
+        if any(archives[index].metrics.Tmax_s > 32400 for index in range(len(archives))):
+            return False
+    return True
+
+
+def _manifest(
+    archives: dict[str, dict], epsilon_archives: dict, pareto_archives: dict
+) -> dict:
+    return {
+        "schema_version": "q2-manifest-v1",
+        "publication_scope": "strict-plus-observed-epsilon-projection",
+        "search_mode": "strict-local-search",
+        "epsilon_selection": "strict-incumbent-projection",
+        "cases": archives,
+        "epsilon": {str(epsilon): case_archives for epsilon, case_archives in epsilon_archives.items()},
+        "pareto_observed": pareto_archives,
+    }
+
+
+def _epsilon_dir(epsilon) -> str:
+    return str(epsilon).replace(".", "_")
 
 
 def _repository_root(explicit: Path | None) -> Path:

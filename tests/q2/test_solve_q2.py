@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -33,3 +34,23 @@ def test_verify_rejects_incomplete_manifest(tmp_path):
     assert main(["--verify", "--output-root", str(output)]) == 1
     manifest.write_text('{"schema_version":"q2-manifest-v1","cases":null}', encoding="utf-8")
     assert main(["--verify", "--output-root", str(output)]) == 1
+
+
+def test_formal_run_verifies_epsilon_and_pareto_outputs_then_detects_tampering(tmp_path):
+    root = Path(__file__).resolve().parents[2]
+    source = root.parents[2]
+    output = tmp_path / "workbooks"
+
+    assert main([
+        "--repository-root", str(source), "--output-root", str(output), "--evaluation-limit", "2",
+    ]) == 0
+    assert main(["--verify", "--repository-root", str(source), "--output-root", str(output)]) == 0
+
+    epsilon_case = output / "q2" / "epsilon" / "0_005" / "Case1.json"
+    archive = json.loads(epsilon_case.read_text(encoding="utf-8"))
+    archive["epsilon"] = "0.5"
+    epsilon_case.write_text(json.dumps(archive), encoding="utf-8")
+    assert main(["--verify", "--repository-root", str(source), "--output-root", str(output)]) == 1
+
+    (output / "q2" / "pareto" / "Case2.json").unlink()
+    assert main(["--verify", "--repository-root", str(source), "--output-root", str(output)]) == 1
