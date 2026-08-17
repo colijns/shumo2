@@ -12,11 +12,24 @@ ObjectiveKey = tuple[int, int, int, Routes]
 
 
 def normalize_routes(routes: Iterable[Iterable[int]]) -> Routes:
-    """Copy task routes into the canonical immutable representation."""
+    """Copy exact integer task IDs into canonical immutable routes."""
     try:
-        return tuple(tuple(int(task_id) for task_id in route) for route in routes)
-    except (TypeError, ValueError) as exc:
-        raise ValueError("routes must be iterables of integer task IDs") from exc
+        canonical = tuple(tuple(route) for route in routes)
+    except TypeError as exc:
+        raise ValueError("routes must be iterables of exact integers") from exc
+    if any(type(task_id) is not int for route in canonical for task_id in route):
+        raise ValueError("routes must contain exact integers")
+    return canonical
+
+
+def _validate_candidate_task_ids(routes: Routes, task_count: int) -> None:
+    """Reject invalid task partitions before replay indexes matrices."""
+    task_ids = tuple(task_id for route in routes for task_id in route)
+    expected = set(range(1, task_count + 1))
+    if any(task_id not in expected for task_id in task_ids):
+        raise ValueError(f"candidate task IDs must be in 1..{task_count}")
+    if len(task_ids) != task_count or set(task_ids) != expected:
+        raise ValueError(f"candidate task IDs must cover 1..{task_count} exactly once")
 
 
 def canonical_route_signature(routes: Iterable[Iterable[int]]) -> Routes:
@@ -88,6 +101,7 @@ def replay_metrics(
     if not canonical or any(not route for route in canonical):
         raise ValueError("all fleet routes must be nonempty")
     lookup = _task_lookup(tasks)
+    _validate_candidate_task_ids(canonical, len(lookup))
     route_metrics = tuple(_replay_route(route, lookup, distance_km, time_s) for route in canonical)
     work = tuple(route.work_s for route in route_metrics)
     mean = Fraction(sum(work), len(work))

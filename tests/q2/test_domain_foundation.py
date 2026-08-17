@@ -15,6 +15,7 @@ from Q2.metrics import (
     balanced_key,
     canonical_route_signature,
     epsilon_bound,
+    normalize_routes,
     replay_metrics,
     strict_key,
 )
@@ -331,3 +332,66 @@ def test_epsilon_boundary_accepts_exact_value_and_rejects_plus_one():
     assert bound == 10_501
     assert 10_501 <= bound
     assert not 10_502 <= bound
+
+
+def test_load_problem_sorts_shuffled_valid_uav_records(synthetic_parent):
+    attachment, archive_path, original = synthetic_parent
+    shuffled = copy.deepcopy(original)
+    shuffled["uavs"] = [shuffled["uavs"][2], shuffled["uavs"][0], shuffled["uavs"][3], shuffled["uavs"][1]]
+    archive_path.write_text(json.dumps(shuffled), encoding="utf-8")
+
+    problem = load_problem("Case1", attachment_path=attachment, archive_path=archive_path)
+
+    assert problem.routes == _routes()
+    assert tuple(record["uav_id"] for record in problem.parent_archive["uavs"]) == (3, 1, 4, 2)
+
+
+def test_load_problem_rejects_non_object_uav_record(synthetic_parent):
+    attachment, archive_path, original = synthetic_parent
+    malformed = copy.deepcopy(original)
+    malformed["uavs"][0] = None
+    archive_path.write_text(json.dumps(malformed), encoding="utf-8")
+
+    with pytest.raises(ParentArchiveError, match="JSON object"):
+        load_problem("Case1", attachment_path=attachment, archive_path=archive_path)
+
+
+@pytest.mark.parametrize("uav_id", (True, 1.0))
+def test_load_problem_rejects_non_exact_uav_id(synthetic_parent, uav_id):
+    attachment, archive_path, original = synthetic_parent
+    malformed = copy.deepcopy(original)
+    malformed["uavs"][0]["uav_id"] = uav_id
+    archive_path.write_text(json.dumps(malformed), encoding="utf-8")
+
+    with pytest.raises(ParentArchiveError, match="exact integers"):
+        load_problem("Case1", attachment_path=attachment, archive_path=archive_path)
+
+
+@pytest.mark.parametrize("task_id", (1.9, "2", True, None))
+def test_normalize_routes_rejects_non_exact_task_ids(task_id):
+    with pytest.raises(ValueError, match="exact integers"):
+        normalize_routes(((task_id,),))
+
+
+def test_replay_metrics_rejects_out_of_range_before_matrix_access():
+    tasks = _tasks()
+    distance, times = _matrices(tasks)
+
+    with pytest.raises(ValueError, match="1..6"):
+        replay_metrics(tasks, distance, times, ((1, 3), (2, 4), (5,), (7,)))
+
+
+def test_replay_metrics_rejects_duplicate_or_missing_task_ids():
+    tasks = _tasks()
+    distance, times = _matrices(tasks)
+
+    with pytest.raises(ValueError, match="exactly once"):
+        replay_metrics(tasks, distance, times, ((1, 3), (2, 4), (5,), (5,)))
+
+
+def test_replay_metrics_preserves_empty_route_error():
+    tasks = _tasks()
+    distance, times = _matrices(tasks)
+
+    with pytest.raises(ValueError, match="nonempty"):
+        replay_metrics(tasks, distance, times, ((1, 3), (2, 4), (5,), ()))

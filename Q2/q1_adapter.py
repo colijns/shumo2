@@ -113,24 +113,31 @@ def _validate_header(case_name: str, archive: dict[str, Any]) -> list[dict[str, 
     return uavs
 
 
-def _extract_routes(uavs: list[dict[str, Any]], task_count: int) -> tuple[tuple[int, ...], ...]:
-    ids = [record.get("uav_id") for record in uavs]
-    if ids != list(range(1, len(uavs) + 1)):
-        raise ParentArchiveError("parent UAV IDs must be continuous and unique from 1")
-    routes: list[tuple[int, ...]] = []
+def _extract_routes(
+    uavs: list[dict[str, Any]], task_count: int
+) -> tuple[tuple[tuple[int, ...], ...], list[dict[str, Any]]]:
     for record in uavs:
         if not isinstance(record, dict):
             raise ParentArchiveError("each parent UAV record must be a JSON object")
+    ids = [record.get("uav_id") for record in uavs]
+    if any(type(uav_id) is not int for uav_id in ids):
+        raise ParentArchiveError("parent UAV IDs must be exact integers")
+    expected_ids = set(range(1, len(uavs) + 1))
+    if set(ids) != expected_ids:
+        raise ParentArchiveError("parent UAV IDs must be continuous and unique from 1")
+    ordered_uavs = sorted(uavs, key=lambda record: record["uav_id"])
+    routes: list[tuple[int, ...]] = []
+    for record in ordered_uavs:
         raw_route = record.get("task_seq")
         if not isinstance(raw_route, list) or not raw_route:
             raise ParentArchiveError("every parent route must be nonempty and loaded by task_seq")
-        if any(isinstance(value, bool) or not isinstance(value, int) for value in raw_route):
-            raise ParentArchiveError("parent task_seq entries must be integers")
+        if any(type(value) is not int for value in raw_route):
+            raise ParentArchiveError("parent task_seq entries must be exact integers")
         routes.append(tuple(raw_route))
     flat = [task_id for route in routes for task_id in route]
     if len(flat) != task_count or set(flat) != set(range(1, task_count + 1)):
         raise ParentArchiveError(f"parent tasks must cover exactly 1..{task_count} once")
-    return tuple(routes)
+    return tuple(routes), ordered_uavs
 
 
 def _validate_mapping(
@@ -231,11 +238,11 @@ def load_problem(
     uavs = _validate_header(case_name, archive)
     case = _load_case_at(case_name, attachment)
     tasks = _tasks(case)
-    routes = _extract_routes(uavs, len(tasks))
-    _validate_mapping(tasks, routes, uavs)
+    routes, ordered_uavs = _extract_routes(uavs, len(tasks))
+    _validate_mapping(tasks, routes, ordered_uavs)
     distance, time_s = _immutable_matrices(case)
     metrics = replay_metrics(tasks, distance, time_s, routes)
-    _validate_route_metrics(uavs, metrics)
+    _validate_route_metrics(ordered_uavs, metrics)
     _validate_parent_metrics(archive, metrics)
     _validate_compatibility(case, distance, time_s, routes, metrics)
     contract_sha = _contract_sha(case_name, tasks, routes, attachment_sha, archive_sha)
