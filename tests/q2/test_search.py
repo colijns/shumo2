@@ -1,5 +1,6 @@
 from types import MappingProxyType
 
+from Q2.balance_core import score_candidate
 from Q2.domain import ProblemData, Task
 from Q2.metrics import balanced_key, epsilon_bound, replay_metrics
 from Q2.search import (
@@ -59,6 +60,28 @@ def test_strict_search_respects_zero_budget_and_keeps_valid_initial_solution():
     assert result.evaluations == 0
     assert result.incumbent.routes == result.initial.routes
     assert result.incumbent.metrics == result.initial.metrics
+
+
+def test_strict_search_uses_explicit_verified_warm_start():
+    problem = _problem()
+    warm_start = ((1, 3), (2, 4))
+
+    result = run_strict_search(problem, evaluation_limit=0, seed=7, initial_routes=warm_start)
+
+    assert result.initial.routes == warm_start
+    assert result.incumbent.routes == warm_start
+
+
+def test_initial_route_shortening_cannot_worsen_selected_objective(monkeypatch):
+    problem = _problem()
+    warm_start = ((1, 3), (2, 4))
+    worse = problem.routes
+    assert score_candidate(problem, worse).strict_key > score_candidate(problem, warm_start).strict_key
+    monkeypatch.setattr("Q2.search._normalize_all_routes", lambda problem, routes: worse)
+
+    result = run_strict_search(problem, evaluation_limit=0, seed=7, initial_routes=warm_start)
+
+    assert result.incumbent.routes == warm_start
 
 
 def test_route_normalization_only_replays_changed_routes(monkeypatch):

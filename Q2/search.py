@@ -7,8 +7,10 @@ from random import Random
 
 from .balance_core import (
     ScoredCandidate,
+    deterministic_route_opt,
     deterministic_two_opt,
     relocate,
+    relocate_block,
     route_work_s,
     score_candidate,
     swap,
@@ -43,7 +45,13 @@ def _seed_component(value: int | str) -> bytes:
     return kind + len(encoded).to_bytes(4, "big") + encoded
 
 
-def run_strict_search(problem: ProblemData, *, evaluation_limit: int, seed: int) -> StrictSearchResult:
+def run_strict_search(
+    problem: ProblemData,
+    *,
+    evaluation_limit: int,
+    seed: int,
+    initial_routes: Routes | None = None,
+) -> StrictSearchResult:
     """Run deterministic first-improvement VND under the strict lexicographic key."""
     return _run_search(
         problem,
@@ -52,6 +60,7 @@ def run_strict_search(problem: ProblemData, *, evaluation_limit: int, seed: int)
         namespace="strict",
         evaluation_limit=evaluation_limit,
         seed=seed,
+        initial_routes=initial_routes,
     )
 
 
@@ -106,7 +115,13 @@ def _run_search(
         raise ValueError("initial routes must be a feasible complete solution")
     if initial.metrics.Tmax_s > bound_s:
         raise ValueError("initial routes violate the Tmax bound")
-    initial = score_candidate(problem, _normalize_all_routes(problem, initial.routes)) or initial
+    normalized_initial = score_candidate(problem, _normalize_all_routes(problem, initial.routes))
+    if (
+        normalized_initial is not None
+        and normalized_initial.metrics.Tmax_s <= bound_s
+        and key_of(normalized_initial) < key_of(initial)
+    ):
+        initial = normalized_initial
     incumbent = working = initial
     evaluations, improvements = 0, 0
     while evaluations < evaluation_limit:
@@ -126,11 +141,11 @@ def _run_search(
 
 
 def _normalize_all_routes(problem: ProblemData, routes: Routes) -> Routes:
-    return tuple(deterministic_two_opt(route, problem.tasks, problem.time_s) for route in routes)
+    return tuple(deterministic_route_opt(route, problem.tasks, problem.time_s) for route in routes)
 
 
 def _normalize_changed_routes(problem: ProblemData, before: Routes, after: Routes) -> Routes:
-    """Run 2-opt only on routes touched by an inter-route move.
+    """Run fast 2-opt only on routes touched by an inter-route move.
 
     Every search state is normalized before it becomes ``working``.  Therefore
     unchanged routes can be reused exactly, avoiding a full-fleet 2-opt replay
@@ -159,7 +174,7 @@ def _first_improvement(
         evaluations += 1
         improved = _accept_candidate(incumbent, problem, key_of, bound_s, normalized)
         if improved is not None:
-            return improved, evaluations
+            return _refine_accepted_candidate(problem, incumbent, improved, key_of, bound_s), evaluations
     return None, evaluations
 
 
@@ -179,12 +194,32 @@ def _accept_candidate(
     return candidate
 
 
+def _refine_accepted_candidate(
+    problem: ProblemData,
+    incumbent: ScoredCandidate,
+    accepted: ScoredCandidate,
+    key_of,
+    bound_s: int,
+) -> ScoredCandidate:
+    """Apply expensive Or-opt only after a candidate already improves quickly."""
+    refined_routes = tuple(
+        route
+        if route == incumbent.routes[index]
+        else deterministic_route_opt(route, problem.tasks, problem.time_s)
+        for index, route in enumerate(accepted.routes)
+    )
+    refined = score_candidate(problem, refined_routes)
+    if refined is None or refined.metrics.Tmax_s > bound_s or key_of(refined) >= key_of(accepted):
+        return accepted
+    return refined
+
+
 def _perturb(
     problem: ProblemData, routes: Routes, randomizer: Random, bound_s: int, remaining: int
 ) -> tuple[ScoredCandidate | None, int]:
     if remaining == 0:
         return None, 0
-    proposal = _reservoir_sample(_ordered_move_candidates(problem, routes), randomizer)
+    proposal = _random_move_candidate(problem, routes, randomizer)
     if proposal is None:
         return None, 0
     normalized = _normalize_changed_routes(problem, routes, proposal)
@@ -194,29 +229,113 @@ def _perturb(
     return candidate, 1
 
 
-def _reservoir_sample(proposals, randomizer: Random) -> Routes | None:
-    """Select one generated move uniformly without materializing all routes."""
-    selected = None
-    for count, proposal in enumerate(proposals, 1):
-        if randomizer.randrange(count) == 0:
-            selected = proposal
-    return selected
-
-
 def _ordered_move_candidates(problem: ProblemData, routes: Routes):
     relocate_pairs, swap_pairs = _prioritized_route_pairs(problem, routes)
+    neighborhoods = (
+        _single_relocate_candidates(problem, routes, relocate_pairs),
+        _block_relocate_candidates(problem, routes, relocate_pairs),
+        _swap_candidates(problem, routes, swap_pairs),
+    )
+    yield from _round_robin(neighborhoods)
+
+
+def _single_relocate_candidates(problem: ProblemData, routes: Routes, relocate_pairs):
     for source_route, target_route in relocate_pairs:
         for source_index in range(len(routes[source_route])):
             for target_index in range(len(routes[target_route]) + 1):
                 candidate = relocate(routes, source_route, source_index, target_route, target_index, problem.tasks)
                 if candidate is not None:
                     yield candidate
+
+
+def _block_relocate_candidates(problem: ProblemData, routes: Routes, relocate_pairs):
+    for source_route, target_route in relocate_pairs:
+        for block_size in (2, 3):
+            for source_index in range(len(routes[source_route]) - block_size + 1):
+                for target_index in range(len(routes[target_route]) + 1):
+                    candidate = relocate_block(
+                        routes,
+                        source_route,
+                        source_index,
+                        block_size,
+                        target_route,
+                        target_index,
+                        problem.tasks,
+                    )
+                    if candidate is not None:
+                        yield candidate
+
+
+def _swap_candidates(problem: ProblemData, routes: Routes, swap_pairs):
     for left_route, right_route in swap_pairs:
         for left_index in range(len(routes[left_route])):
             for right_index in range(len(routes[right_route])):
                 candidate = swap(routes, left_route, left_index, right_route, right_index, problem.tasks)
                 if candidate is not None:
                     yield candidate
+
+
+def _round_robin(neighborhoods):
+    """Interleave neighborhoods so one large operator cannot consume the budget."""
+    active = [iter(neighborhood) for neighborhood in neighborhoods]
+    while active:
+        remaining = []
+        for neighborhood in active:
+            try:
+                yield next(neighborhood)
+                remaining.append(neighborhood)
+            except StopIteration:
+                pass
+        active = remaining
+
+
+def _random_move_candidate(
+    problem: ProblemData, routes: Routes, randomizer: Random, *, max_attempts: int = 100
+) -> Routes | None:
+    """Sample legal perturbations directly without scanning the full neighborhood."""
+    if len(routes) < 2:
+        return None
+    for _ in range(max_attempts):
+        source_route = randomizer.randrange(len(routes))
+        target_route = randomizer.randrange(len(routes) - 1)
+        if target_route >= source_route:
+            target_route += 1
+        move_type = randomizer.randrange(3)
+        source, target = routes[source_route], routes[target_route]
+        if move_type == 0 and len(source) > 1:
+            candidate = relocate(
+                routes,
+                source_route,
+                randomizer.randrange(len(source)),
+                target_route,
+                randomizer.randrange(len(target) + 1),
+                problem.tasks,
+            )
+        elif move_type == 1 and len(source) > 2:
+            block_size = randomizer.randrange(2, min(3, len(source) - 1) + 1)
+            candidate = relocate_block(
+                routes,
+                source_route,
+                randomizer.randrange(len(source) - block_size + 1),
+                block_size,
+                target_route,
+                randomizer.randrange(len(target) + 1),
+                problem.tasks,
+            )
+        elif move_type == 2:
+            candidate = swap(
+                routes,
+                source_route,
+                randomizer.randrange(len(source)),
+                target_route,
+                randomizer.randrange(len(target)),
+                problem.tasks,
+            )
+        else:
+            candidate = None
+        if candidate is not None:
+            return candidate
+    return None
 
 
 def _prioritized_route_pairs(problem: ProblemData, routes: Routes):

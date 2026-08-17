@@ -113,6 +113,39 @@ def relocate(
     return candidate if is_legal_routes(candidate, tasks) else None
 
 
+def relocate_block(
+    routes: Iterable[Iterable[int]],
+    source_route: int,
+    source_index: int,
+    block_size: int,
+    target_route: int,
+    target_index: int,
+    tasks: tuple[Task, ...],
+) -> Routes | None:
+    """Move one consecutive task block between routes when legal."""
+    try:
+        canonical = normalize_routes(routes)
+    except ValueError:
+        return None
+    if source_route == target_route or not _valid_route_index(canonical, source_route, target_route):
+        return None
+    source, target = canonical[source_route], canonical[target_route]
+    if (
+        type(block_size) is not int
+        or block_size < 2
+        or len(source) <= block_size
+        or not _valid_position(source_index, len(source))
+        or source_index + block_size > len(source)
+        or not _valid_position(target_index, len(target), allow_end=True)
+    ):
+        return None
+    block = source[source_index : source_index + block_size]
+    new_source = source[:source_index] + source[source_index + block_size :]
+    new_target = target[:target_index] + block + target[target_index:]
+    candidate = _replace_routes(canonical, {source_route: new_source, target_route: new_target})
+    return candidate if is_legal_routes(candidate, tasks) else None
+
+
 def swap(
     routes: Iterable[Iterable[int]],
     left_route: int,
@@ -160,6 +193,37 @@ def deterministic_two_opt(
         current = improved
 
 
+def deterministic_or_opt(
+    route: Iterable[int],
+    tasks: tuple[Task, ...],
+    time_s: tuple[tuple[int, ...], ...],
+    *,
+    max_block_size: int = 3,
+) -> tuple[int, ...]:
+    """Repeatedly reinsert short chains when this strictly shortens a route."""
+    if type(max_block_size) is not int or max_block_size < 1:
+        raise ValueError("max_block_size must be a positive exact integer")
+    current = tuple(route)
+    point_by_task = _point_lookup(tasks)
+    while True:
+        improved = _first_or_opt_improvement(current, point_by_task, time_s, max_block_size)
+        if improved is None:
+            return current
+        current = improved
+
+
+def deterministic_route_opt(
+    route: Iterable[int], tasks: tuple[Task, ...], time_s: tuple[tuple[int, ...], ...]
+) -> tuple[int, ...]:
+    """Alternate 2-opt and Or-opt until neither can strictly shorten the route."""
+    current = tuple(route)
+    while True:
+        improved = deterministic_or_opt(deterministic_two_opt(current, tasks, time_s), tasks, time_s)
+        if improved == current:
+            return current
+        current = improved
+
+
 def _first_two_opt_improvement(
     route: tuple[int, ...], point_by_task: dict[int, int], time_s: tuple[tuple[int, ...], ...]
 ) -> tuple[int, ...] | None:
@@ -169,6 +233,26 @@ def _first_two_opt_improvement(
             candidate = route[:start] + tuple(reversed(route[start:end])) + route[end:]
             if _route_is_legal(candidate, point_by_task) and route_work_s(candidate, time_s) < baseline:
                 return candidate
+    return None
+
+
+def _first_or_opt_improvement(
+    route: tuple[int, ...],
+    point_by_task: dict[int, int],
+    time_s: tuple[tuple[int, ...], ...],
+    max_block_size: int,
+) -> tuple[int, ...] | None:
+    baseline = route_work_s(route, time_s)
+    for block_size in range(1, min(max_block_size, len(route) - 1) + 1):
+        for source_index in range(len(route) - block_size + 1):
+            block = route[source_index : source_index + block_size]
+            remainder = route[:source_index] + route[source_index + block_size :]
+            for target_index in range(len(remainder) + 1):
+                candidate = remainder[:target_index] + block + remainder[target_index:]
+                if candidate == route:
+                    continue
+                if _route_is_legal(candidate, point_by_task) and route_work_s(candidate, time_s) < baseline:
+                    return candidate
     return None
 
 
