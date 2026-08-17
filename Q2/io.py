@@ -3,6 +3,7 @@
 import json
 import os
 import tempfile
+import xml.etree.ElementTree as element_tree
 import zipfile
 from fractions import Fraction
 from pathlib import Path
@@ -123,7 +124,7 @@ def validate_result_workbook(
 
     try:
         workbook = pd.ExcelFile(path)
-    except (OSError, ValueError, zipfile.BadZipFile) as exc:
+    except (OSError, ValueError, zipfile.BadZipFile, element_tree.ParseError) as exc:
         raise ValueError("result workbook cannot be read") from exc
     if workbook.sheet_names != list(solutions):
         raise ValueError("result workbook sheet set or order mismatch")
