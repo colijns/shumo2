@@ -22,3 +22,12 @@ def test_smoke_runs_real_parent_cases_without_formal_output(tmp_path):
 def test_partial_formal_case_is_rejected():
     with pytest.raises(SystemExit, match="partial formal"):
         main(["--case", "Case1"])
+
+
+def test_verify_rejects_incomplete_manifest(tmp_path):
+    output = tmp_path / "workbooks"
+    manifest = output / "q2" / "reports" / "run_manifest.json"
+    manifest.parent.mkdir(parents=True)
+    manifest.write_text('{"schema_version":"q2-manifest-v1","cases":{}}', encoding="utf-8")
+
+    assert main(["--verify", "--output-root", str(output)]) == 1

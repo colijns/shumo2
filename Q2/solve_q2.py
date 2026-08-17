@@ -29,10 +29,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(arguments: Sequence[str] | None = None) -> int:
     options = build_parser().parse_args(arguments)
-    if options.verify:
-        return _verify(options)
     if options.case:
         raise SystemExit("partial formal publication is unsupported; run all four cases")
+    if options.smoke and options.verify:
+        raise SystemExit("--smoke and --verify are mutually exclusive")
+    if options.verify:
+        return _verify(options)
     return _run(options)
 
 
@@ -68,7 +70,21 @@ def _verify(options: argparse.Namespace) -> int:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return 1
-    return int(manifest.get("schema_version") != "q2-manifest-v1")
+    if manifest.get("schema_version") != "q2-manifest-v1" or set(manifest.get("cases", {})) != set(FLEET_SIZE_BY_CASE):
+        return 1
+    archive_dir = options.parent_archive_dir or root / "outputs" / "workbooks" / "baseline_20260816"
+    attachment = options.attachment or root / "attachment" / "附件1.xlsx"
+    try:
+        for case_name in FLEET_SIZE_BY_CASE:
+            problem = load_problem(case_name, attachment_path=attachment, archive_path=archive_dir / f"q1_solution_{case_name}.json")
+            archive_path = output_root / "q2" / "strict" / f"{case_name}.json"
+            archive = json.loads(archive_path.read_text(encoding="utf-8"))
+            validate_solution_archive(problem, archive)
+        if not (output_root / "result2.xlsx").is_file():
+            return 1
+    except (OSError, ValueError, json.JSONDecodeError):
+        return 1
+    return 0
 
 
 def _manifest(archives: dict[str, dict]) -> dict:
