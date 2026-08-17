@@ -7,8 +7,7 @@ from Q2.solve_q2 import main
 
 
 def test_smoke_runs_real_parent_cases_without_formal_output(tmp_path):
-    root = Path(__file__).resolve().parents[2]
-    source = root.parents[2]
+    source = Path(__file__).resolve().parents[2]
     output = tmp_path / "workbooks"
 
     status = main([
@@ -37,8 +36,7 @@ def test_verify_rejects_incomplete_manifest(tmp_path):
 
 
 def test_formal_run_verifies_epsilon_and_pareto_outputs_then_detects_tampering(tmp_path):
-    root = Path(__file__).resolve().parents[2]
-    source = root.parents[2]
+    source = Path(__file__).resolve().parents[2]
     output = tmp_path / "workbooks"
 
     assert main([

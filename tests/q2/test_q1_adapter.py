@@ -6,8 +6,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-PARENT_ROOT = ROOT.parents[2]
-SOURCE_ATTACHMENT = PARENT_ROOT / "attachment" / "附件1.xlsx"
+SOURCE_ATTACHMENT = ROOT / "attachment" / "附件1.xlsx"
 ARCHIVE_DIR = ROOT / "outputs" / "workbooks" / "baseline_20260816"
 EXPECTED_FLEET_SIZE = {"Case1": 4, "Case2": 2, "Case3": 5, "Case4": 4}
 EXPECTED_FIRST_LEG_S = {"Case1": 5277, "Case2": 48, "Case3": 5725, "Case4": 2433}
