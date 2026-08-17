@@ -66,9 +66,11 @@ def validate_solution_archive(problem: ProblemData, archive: Mapping[str, Any]) 
 def _validate_solution_header(problem: ProblemData, archive: Mapping[str, Any]) -> None:
     if not isinstance(archive, Mapping) or archive.get("schema_version") != SOLUTION_SCHEMA:
         raise ValueError("archive schema is unsupported")
-    if archive.get("case") != problem.case_name or archive.get("fleet_size") != problem.fleet_size:
+    if type(archive.get("fleet_size")) is not int or archive["fleet_size"] != problem.fleet_size:
         raise ValueError("archive case or fleet size mismatch")
-    if archive.get("parent_archive_sha256") != problem.archive_sha256:
+    if not _is_sha256(archive.get("parent_archive_sha256")):
+        raise ValueError("archive parent SHA-256 is malformed")
+    if archive["parent_archive_sha256"] != problem.archive_sha256:
         raise ValueError("archive parent hash mismatch")
 
 
