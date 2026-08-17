@@ -3,6 +3,7 @@
 import json
 import os
 import tempfile
+from fractions import Fraction
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -63,10 +64,70 @@ def validate_solution_archive(problem: ProblemData, archive: Mapping[str, Any]) 
     return candidate
 
 
+def build_solution_archive(problem: ProblemData, candidate: ScoredCandidate) -> dict[str, Any]:
+    """Build replayable strict-solution evidence from immutable candidate data."""
+    if score_candidate(problem, candidate.routes) != candidate:
+        raise ValueError("candidate must be fully replayed for this problem")
+    metrics = candidate.metrics
+    return {
+        "schema_version": SOLUTION_SCHEMA,
+        "case": problem.case_name,
+        "fleet_size": problem.fleet_size,
+        "input": {
+            "problem_contract_sha256": problem.problem_contract_sha256,
+            "attachment_sha256": problem.attachment_sha256,
+            "parent_archive_sha256": problem.archive_sha256,
+        },
+        "task_routes": [list(route) for route in candidate.routes],
+        "metrics": {
+            "route_flight_s": list(metrics.flight_s),
+            "route_work_s": list(metrics.work_s),
+            "Tmax_s": metrics.Tmax_s,
+            "Tmin_s": metrics.Tmin_s,
+            "delta_s": metrics.delta_s,
+            "sum_T_s": metrics.sum_T_s,
+            "mean_T_s": {"numerator": metrics.mean_T_s.numerator, "denominator": metrics.mean_T_s.denominator},
+        },
+    }
+
+
+def write_result_workbook(path: str | Path, solutions: Mapping[str, tuple[ProblemData, ScoredCandidate]]) -> None:
+    """Atomically publish strict point routes in result2-compatible sheets."""
+    import pandas as pd
+
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(prefix=f".{target.name}.", suffix=".xlsx", dir=target.parent)
+    os.close(descriptor)
+    try:
+        with pd.ExcelWriter(temporary_name, engine="openpyxl") as writer:
+            for case_name, (problem, candidate) in solutions.items():
+                if case_name != problem.case_name:
+                    raise ValueError("solution map case key mismatch")
+                _result_frame(problem, candidate).to_excel(writer, sheet_name=case_name, index=False)
+        os.replace(temporary_name, target)
+        _fsync_directory(target.parent)
+    except BaseException:
+        Path(temporary_name).unlink(missing_ok=True)
+        raise
+
+
+def _result_frame(problem: ProblemData, candidate: ScoredCandidate):
+    import pandas as pd
+
+    point_by_task = {task.task_id: task.point_id for task in problem.tasks}
+    point_routes = [tuple(point_by_task[task_id] for task_id in route) for route in candidate.routes]
+    width = max(len(route) for route in point_routes)
+    rows = [{"UAV_ID": index, **{f"Point_{column}": route[column - 1] if column <= len(route) else None for column in range(1, width + 1)}} for index, route in enumerate(point_routes, 1)]
+    return pd.DataFrame(rows)
+
+
 def _validate_solution_header(problem: ProblemData, archive: Mapping[str, Any]) -> None:
     if not isinstance(archive, Mapping) or archive.get("schema_version") != SOLUTION_SCHEMA:
         raise ValueError("archive schema is unsupported")
-    if type(archive.get("fleet_size")) is not int or archive["fleet_size"] != problem.fleet_size:
+    if archive.get("case") != problem.case_name or type(archive.get("fleet_size")) is not int:
+        raise ValueError("archive case or fleet size mismatch")
+    if archive["fleet_size"] != problem.fleet_size:
         raise ValueError("archive case or fleet size mismatch")
     if not _is_sha256(archive.get("parent_archive_sha256")):
         raise ValueError("archive parent SHA-256 is malformed")
