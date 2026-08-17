@@ -1,15 +1,13 @@
 import ast
 import importlib
 import json
-import shutil
-from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE_ATTACHMENT = ROOT.parents[2] / "attachment" / "附件1.xlsx"
-WORKTREE_ATTACHMENT = ROOT / "attachment" / "附件1.xlsx"
+PARENT_ROOT = ROOT.parents[2]
+SOURCE_ATTACHMENT = PARENT_ROOT / "attachment" / "附件1.xlsx"
 ARCHIVE_DIR = ROOT / "outputs" / "workbooks" / "baseline_20260816"
 EXPECTED_FLEET_SIZE = {"Case1": 4, "Case2": 2, "Case3": 5, "Case4": 4}
 EXPECTED_FIRST_LEG_S = {"Case1": 5277, "Case2": 48, "Case3": 5725, "Case4": 2433}
@@ -31,23 +29,12 @@ def adapter():
     return importlib.import_module("Q2.q1_adapter")
 
 
-@contextmanager
-def _available_attachment():
-    if WORKTREE_ATTACHMENT.exists():
-        yield
-        return
-    if not SOURCE_ATTACHMENT.exists():
-        pytest.skip("附件1.xlsx is unavailable in both worktree and source checkout")
-    WORKTREE_ATTACHMENT.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(SOURCE_ATTACHMENT, WORKTREE_ATTACHMENT)
-    try:
-        yield
-    finally:
-        WORKTREE_ATTACHMENT.unlink(missing_ok=True)
-        try:
-            WORKTREE_ATTACHMENT.parent.rmdir()
-        except OSError:
-            pass
+@pytest.fixture(scope="module")
+def real_attachment_path():
+    """Use the explicit parent checkout source without mutating any worktree."""
+    if not SOURCE_ATTACHMENT.is_file():
+        pytest.fail(f"required real attachment is unavailable: {SOURCE_ATTACHMENT}")
+    return SOURCE_ATTACHMENT
 
 
 @pytest.mark.parametrize("case_name, expected_n", EXPECTED_FLEET_SIZE.items())
@@ -57,13 +44,16 @@ def test_fleet_mapping_is_explicit(case_name, expected_n, adapter):
 
 
 @pytest.mark.parametrize("case_name", EXPECTED_FLEET_SIZE)
-def test_real_archive_replays_through_q1_contract(case_name, adapter):
+def test_real_archive_replays_through_q1_contract(case_name, adapter, real_attachment_path):
     """Catches task/point/time/stat drift at the Q1-to-Q2 boundary."""
     archive = json.loads(
         (ARCHIVE_DIR / f"q1_solution_{case_name}.json").read_text(encoding="utf-8")
     )
-    with _available_attachment():
-        replay = adapter.replay_archive(case_name, archive)
+    replay = adapter.replay_archive(
+        case_name,
+        archive,
+        attachment_path=real_attachment_path,
+    )
 
     assert replay["fleet_size"] == EXPECTED_FLEET_SIZE[case_name]
     assert replay["routes"] == tuple(tuple(uav["task_seq"]) for uav in archive["uavs"])
@@ -78,15 +68,17 @@ def test_real_archive_replays_through_q1_contract(case_name, adapter):
     assert len(replay["time_s"]) == len(replay["case"]["tasks"]) + 1
 
 
+def _is_q1_module(name: str | None) -> bool:
+    return bool(name) and (name == "Q1" or name.startswith("Q1."))
+
+
 def _q1_imports(path: Path):
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
     for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and node.module in {"Q1", "Q1.solve_q1", "Q1.tight_search"}:
+        if isinstance(node, ast.ImportFrom) and _is_q1_module(node.module):
             yield node
-        if isinstance(node, ast.Import):
-            for alias in node.names:
-                if alias.name in {"Q1", "Q1.solve_q1", "Q1.tight_search"}:
-                    yield node
+        if isinstance(node, ast.Import) and any(_is_q1_module(alias.name) for alias in node.names):
+            yield node
 
 
 def _referenced_attributes(path: Path, roots: set[str]):
@@ -118,6 +110,7 @@ def test_q2_has_one_narrow_q1_import_boundary():
             for alias in node.names
         }
         assert imported_names == ALLOWED_Q1_HELPERS
+        assert all(isinstance(node, ast.ImportFrom) for node in imports)
         assert _referenced_attributes(path, {"solve_q1", "tight_search"}) == set()
 
 
