@@ -70,7 +70,8 @@ def _verify(options: argparse.Namespace) -> int:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return 1
-    if manifest.get("schema_version") != "q2-manifest-v1" or set(manifest.get("cases", {})) != set(FLEET_SIZE_BY_CASE):
+    cases = manifest.get("cases") if isinstance(manifest, dict) else None
+    if manifest.get("schema_version") != "q2-manifest-v1" or not isinstance(cases, dict) or set(cases) != set(FLEET_SIZE_BY_CASE):
         return 1
     archive_dir = options.parent_archive_dir or root / "outputs" / "workbooks" / "baseline_20260816"
     attachment = options.attachment or root / "attachment" / "附件1.xlsx"

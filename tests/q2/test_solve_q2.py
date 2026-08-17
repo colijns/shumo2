@@ -31,3 +31,5 @@ def test_verify_rejects_incomplete_manifest(tmp_path):
     manifest.write_text('{"schema_version":"q2-manifest-v1","cases":{}}', encoding="utf-8")
 
     assert main(["--verify", "--output-root", str(output)]) == 1
+    manifest.write_text('{"schema_version":"q2-manifest-v1","cases":null}', encoding="utf-8")
+    assert main(["--verify", "--output-root", str(output)]) == 1
