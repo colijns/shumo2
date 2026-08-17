@@ -55,6 +55,8 @@ def _run(options: argparse.Namespace) -> int:
     attachment = options.attachment or root / "attachment" / "附件1.xlsx"
     solutions = {}
     archives = {}
+    epsilon_archives = {epsilon: {} for epsilon in EPSILON_VALUES}
+    pareto_archives = {}
     for case_name in FLEET_SIZE_BY_CASE:
         problem = load_problem(case_name, attachment_path=attachment, archive_path=archive_dir / f"q1_solution_{case_name}.json")
         initial_routes = None
@@ -71,17 +73,7 @@ def _run(options: argparse.Namespace) -> int:
             seed=options.seed,
             initial_routes=initial_routes,
         )
-        archive = build_solution_archive(problem, result.incumbent)
-        validate_solution_archive(problem, archive)
-        solutions[case_name] = (problem, result.incumbent)
-        archives[case_name] = archive
-    if options.smoke:
-        return 0
-    strict_dir = output_root / "q2" / "strict"
-    epsilon_archives = {epsilon: {} for epsilon in EPSILON_VALUES}
-    pareto_archives = {}
-    for case_name, archive in archives.items():
-        problem, candidate = solutions[case_name]
+        candidate = result.incumbent
         state = create_dual_track_state(candidate)
         for epsilon in EPSILON_VALUES:
             epsilon_result = run_epsilon_search(
@@ -92,6 +84,11 @@ def _run(options: argparse.Namespace) -> int:
                 initial_routes=candidate.routes,
             )
             state = propagate_candidate(state, epsilon_result.incumbent)
+        final_candidate = state.strict_incumbent
+        archive = build_solution_archive(problem, final_candidate)
+        validate_solution_archive(problem, archive)
+        solutions[case_name] = (problem, final_candidate)
+        archives[case_name] = archive
         pareto_archives[case_name] = [
             build_solution_archive(
                 problem,
@@ -109,6 +106,9 @@ def _run(options: argparse.Namespace) -> int:
                 epsilon=str(incumbent.epsilon),
                 epsilon_bound_s=incumbent.bound_s,
             )
+    if options.smoke:
+        return 0
+    strict_dir = output_root / "q2" / "strict"
     for case_name, archive in archives.items():
         atomic_write_json(strict_dir / f"{case_name}.json", archive)
     for epsilon, case_archives in epsilon_archives.items():
