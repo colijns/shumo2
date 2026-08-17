@@ -75,6 +75,7 @@ def _run(options: argparse.Namespace) -> int:
                 bound_s=epsilon_bound(candidate.metrics.Tmax_s, epsilon),
                 evaluation_limit=options.epsilon_evaluation_limit or options.evaluation_limit,
                 seed=options.seed,
+                initial_routes=candidate.routes,
             )
             state = propagate_candidate(state, epsilon_result.incumbent)
         pareto_archives[case_name] = [
