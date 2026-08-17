@@ -3,9 +3,12 @@ import math
 import pytest
 
 from Q2.balance_core import (
+    deterministic_or_opt,
+    deterministic_route_opt,
     deterministic_two_opt,
     is_legal_routes,
     relocate,
+    relocate_block,
     route_work_s,
     swap,
 )
@@ -63,6 +66,15 @@ def test_swap_returns_only_legal_cross_route_exchange():
     assert swap(((1, 2), (3, 4)), 0, 0, 0, 1, tasks) is None
 
 
+def test_relocate_block_moves_consecutive_tasks_and_keeps_source_nonempty():
+    tasks = _tasks() + (Task(5, 50, 10.0, 0.0),)
+    routes = ((1, 2, 3), (4, 5))
+
+    assert relocate_block(routes, 0, 1, 2, 1, 1, tasks) == ((1,), (4, 2, 3, 5))
+    assert relocate_block(routes, 0, 0, 3, 1, 0, tasks) is None
+    assert relocate_block(routes, 0, 0, 1, 1, 0, tasks) is None
+
+
 def test_deterministic_two_opt_returns_only_strict_legal_shortening():
     tasks = _tasks()
     time_s = _time_s(tasks)
@@ -72,6 +84,19 @@ def test_deterministic_two_opt_returns_only_strict_legal_shortening():
 
     assert optimized == (1, 3, 4, 2)
     assert route_work_s(optimized, time_s) < route_work_s(route, time_s)
+
+
+def test_or_opt_and_combined_route_opt_only_shorten_legally():
+    tasks = _tasks()
+    time_s = _time_s(tasks)
+    route = (1, 4, 3, 2)
+
+    or_optimized = deterministic_or_opt(route, tasks, time_s)
+    combined = deterministic_route_opt(route, tasks, time_s)
+
+    assert route_work_s(or_optimized, time_s) <= route_work_s(route, time_s)
+    assert route_work_s(combined, time_s) <= route_work_s(or_optimized, time_s)
+    assert set(combined) == set(route)
 
 
 @pytest.mark.parametrize("route", ((), (1,), (1, 2)))

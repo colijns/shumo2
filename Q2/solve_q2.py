@@ -27,6 +27,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--repository-root", type=Path)
     parser.add_argument("--attachment", type=Path)
     parser.add_argument("--parent-archive-dir", type=Path)
+    parser.add_argument("--strict-warm-start-dir", type=Path)
     parser.add_argument("--output-root", type=Path)
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
     parser.add_argument("--evaluation-limit", type=int, default=DEFAULT_EVALUATION_LIMIT)
@@ -56,7 +57,20 @@ def _run(options: argparse.Namespace) -> int:
     archives = {}
     for case_name in FLEET_SIZE_BY_CASE:
         problem = load_problem(case_name, attachment_path=attachment, archive_path=archive_dir / f"q1_solution_{case_name}.json")
-        result = run_strict_search(problem, evaluation_limit=options.evaluation_limit, seed=options.seed)
+        initial_routes = None
+        if options.strict_warm_start_dir is not None:
+            warm_start_path = options.strict_warm_start_dir / f"{case_name}.json"
+            try:
+                warm_start_archive = json.loads(warm_start_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as exc:
+                raise ValueError(f"invalid strict warm-start archive: {warm_start_path}") from exc
+            initial_routes = validate_solution_archive(problem, warm_start_archive).routes
+        result = run_strict_search(
+            problem,
+            evaluation_limit=options.evaluation_limit,
+            seed=options.seed,
+            initial_routes=initial_routes,
+        )
         archive = build_solution_archive(problem, result.incumbent)
         validate_solution_archive(problem, archive)
         solutions[case_name] = (problem, result.incumbent)
