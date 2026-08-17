@@ -106,6 +106,7 @@ def write_result_workbook(path: str | Path, solutions: Mapping[str, tuple[Proble
                 if case_name != problem.case_name:
                     raise ValueError("solution map case key mismatch")
                 _result_frame(problem, candidate).to_excel(writer, sheet_name=case_name, index=False)
+        _fsync_file(Path(temporary_name))
         os.replace(temporary_name, target)
         _fsync_directory(target.parent)
     except BaseException:
@@ -119,7 +120,7 @@ def _result_frame(problem: ProblemData, candidate: ScoredCandidate):
     point_by_task = {task.task_id: task.point_id for task in problem.tasks}
     point_routes = [tuple(point_by_task[task_id] for task_id in route) for route in candidate.routes]
     width = max(len(route) for route in point_routes)
-    rows = [{"UAV_ID": index, **{f"Point_{column}": route[column - 1] if column <= len(route) else None for column in range(1, width + 1)}} for index, route in enumerate(point_routes, 1)]
+    rows = [{"UAV ID": index, **{f"{column}th Inspection Point": route[column - 1] if column <= len(route) else None for column in range(1, width + 1)}} for index, route in enumerate(point_routes, 1)]
     return pd.DataFrame(rows)
 
 
@@ -156,6 +157,16 @@ def _is_sha256(value: object) -> bool:
     except ValueError:
         return False
     return True
+
+
+def _fsync_file(path: Path) -> None:
+    if os.name == "nt":
+        return
+    descriptor = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
 
 
 def _fsync_directory(directory: Path) -> None:

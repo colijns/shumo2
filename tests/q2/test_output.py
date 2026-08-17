@@ -40,5 +40,6 @@ def test_result_workbook_contains_only_case_sheets_with_point_sequences(tmp_path
     assert workbook.sheet_names == ["Case1"]
     frame = pd.read_excel(path, sheet_name="Case1")
     assert frame.iloc[:, 0].tolist() == [1, 2]
+    assert frame.columns.tolist() == ["UAV ID", "1th Inspection Point", "2th Inspection Point"]
     assert frame.iloc[0, 1:3].tolist() == [10, 20]
     assert 0 not in frame.fillna(-1).values
