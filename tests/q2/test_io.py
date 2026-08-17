@@ -46,6 +46,8 @@ def test_checkpoint_rejects_problem_contract_hash_drift(tmp_path):
     assert load_checkpoint(path, "a" * 64)["schema_version"] == "q2-checkpoint-v1"
     with pytest.raises(CheckpointError, match="contract"):
         load_checkpoint(path, "b" * 64)
+    with pytest.raises(CheckpointError, match="SHA-256"):
+        load_checkpoint(path, True)
 
 
 def test_solution_validator_replays_routes_and_rejects_tampered_metrics():
@@ -57,4 +59,8 @@ def test_solution_validator_replays_routes_and_rejects_tampered_metrics():
 
     archive["metrics"]["delta_s"] += 1
     with pytest.raises(ValueError, match="delta_s"):
+        validate_solution_archive(problem, archive)
+    archive = _archive(problem)
+    archive["metrics"]["Tmin_s"] = True
+    with pytest.raises(ValueError, match="exact integer"):
         validate_solution_archive(problem, archive)

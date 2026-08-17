@@ -29,6 +29,7 @@ def atomic_write_json(path: str | Path, payload: Mapping[str, Any]) -> None:
             stream.flush()
             os.fsync(stream.fileno())
         os.replace(temporary_name, target)
+        _fsync_directory(target.parent)
     except BaseException:
         Path(temporary_name).unlink(missing_ok=True)
         raise
@@ -36,12 +37,16 @@ def atomic_write_json(path: str | Path, payload: Mapping[str, Any]) -> None:
 
 def load_checkpoint(path: str | Path, problem_contract_sha256: str) -> dict[str, Any]:
     """Load only compatible checkpoint JSON for exact frozen problem input."""
+    if not _is_sha256(problem_contract_sha256):
+        raise CheckpointError("checkpoint problem contract SHA-256 is malformed")
     try:
         payload = json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise CheckpointError("checkpoint cannot be read") from exc
     if not isinstance(payload, dict) or payload.get("schema_version") != CHECKPOINT_SCHEMA:
         raise CheckpointError("checkpoint schema is unsupported")
+    if not _is_sha256(payload.get("problem_contract_sha256")):
+        raise CheckpointError("checkpoint problem contract SHA-256 is malformed")
     if payload.get("problem_contract_sha256") != problem_contract_sha256:
         raise CheckpointError("checkpoint problem contract hash mismatch")
     return payload
@@ -73,5 +78,27 @@ def _validate_stored_metrics(stored: Any, candidate: ScoredCandidate) -> None:
     actual = candidate.metrics
     expected = {"Tmax_s": actual.Tmax_s, "Tmin_s": actual.Tmin_s, "delta_s": actual.delta_s, "sum_T_s": actual.sum_T_s}
     for field, value in expected.items():
-        if stored.get(field) != value:
+        if type(stored.get(field)) is not int:
+            raise ValueError(f"archive {field} must be an exact integer")
+        if stored[field] != value:
             raise ValueError(f"archive {field} mismatch")
+
+
+def _is_sha256(value: object) -> bool:
+    if not isinstance(value, str) or len(value) != 64:
+        return False
+    try:
+        int(value, 16)
+    except ValueError:
+        return False
+    return True
+
+
+def _fsync_directory(directory: Path) -> None:
+    if os.name == "nt":
+        return
+    descriptor = os.open(directory, os.O_RDONLY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
