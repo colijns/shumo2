@@ -2,7 +2,13 @@ from types import MappingProxyType
 
 from Q2.domain import ProblemData, Task
 from Q2.metrics import balanced_key, epsilon_bound, replay_metrics
-from Q2.search import derive_seed, run_epsilon_search, run_strict_search
+from Q2.search import (
+    _normalize_changed_routes,
+    _prioritized_route_pairs,
+    derive_seed,
+    run_epsilon_search,
+    run_strict_search,
+)
 
 
 def _problem() -> ProblemData:
@@ -55,6 +61,35 @@ def test_strict_search_respects_zero_budget_and_keeps_valid_initial_solution():
     assert result.incumbent.metrics == result.initial.metrics
 
 
+def test_route_normalization_only_replays_changed_routes(monkeypatch):
+    problem = _problem()
+    calls = []
+
+    def record(route, tasks, time_s):
+        calls.append(route)
+        return route
+
+    monkeypatch.setattr("Q2.search.deterministic_two_opt", record)
+    before = ((1, 2), (3,), (4,))
+    after = ((1,), (3, 2), (4,))
+
+    assert _normalize_changed_routes(problem, before, after) == after
+    assert calls == [(1,), (3, 2)]
+
+
+def test_route_pairs_prioritize_largest_workload_imbalance():
+    problem = _problem()
+    routes = ((1, 2), (3,), (4,))
+
+    relocate_pairs, swap_pairs = _prioritized_route_pairs(problem, routes)
+
+    workloads = [sum(problem.time_s[left][right] for left, right in zip((0,) + route, route + (0,))) + 300 * len(route) for route in routes]
+    assert relocate_pairs[0] == (workloads.index(max(workloads)), workloads.index(min(workloads)))
+    assert abs(workloads[swap_pairs[0][0]] - workloads[swap_pairs[0][1]]) == max(
+        abs(workloads[left] - workloads[right]) for left, right in swap_pairs
+    )
+
+
 def _balanced_key(candidate):
     metrics = candidate.metrics
     return balanced_key(metrics.Tmax_s, metrics.delta_s, metrics.sum_T_s, candidate.routes)
@@ -72,6 +107,22 @@ def test_epsilon_search_is_deterministic_respects_bound_and_improves_balance():
     assert first.incumbent.metrics.Tmax_s <= bound_s
     assert first.evaluations <= 100
     assert _balanced_key(first.incumbent) <= _balanced_key(first.initial)
+
+
+def test_epsilon_search_uses_explicit_strict_warm_start():
+    problem = _problem()
+    warm_start = ((1, 3), (2, 4))
+
+    result = run_epsilon_search(
+        problem,
+        bound_s=32_400,
+        evaluation_limit=0,
+        seed=7,
+        initial_routes=warm_start,
+    )
+
+    assert result.initial.routes == warm_start
+    assert result.incumbent.routes == warm_start
 
 
 def test_epsilon_search_rejects_malformed_bound():

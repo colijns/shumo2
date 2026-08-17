@@ -5,3 +5,4 @@ seaborn
 openpyxl
 pulp
 ortools
+scipy

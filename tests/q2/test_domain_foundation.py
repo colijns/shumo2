@@ -105,7 +105,7 @@ def synthetic_parent(tmp_path):
 @pytest.mark.parametrize("case_name", ("Case1", "Case2", "Case3", "Case4"))
 def test_load_problem_validates_real_parent_archives(case_name):
     root = Path(__file__).resolve().parents[2]
-    attachment = root.parents[2] / "attachment" / "附件1.xlsx"
+    attachment = root / "attachment" / "附件1.xlsx"
     archive = root / "outputs" / "workbooks" / "baseline_20260816" / f"q1_solution_{case_name}.json"
     if not attachment.is_file():
         pytest.fail(f"required real attachment is unavailable: {attachment}")
