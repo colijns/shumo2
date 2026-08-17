@@ -1,0 +1,28 @@
+{
+  "case": "SynthB",
+  "n": 1,
+  "track": "cpsat",
+  "kind": "infeasibility_proof",
+  "M": 2,
+  "generated_at": "2026-08-17 09:43:10",
+  "n_lb": 1,
+  "served": null,
+  "routes": null,
+  "stats": null,
+  "Tmax_s": null,
+  "sum_T_s": null,
+  "verification": {
+    "n_violations": 0
+  },
+  "solver": {
+    "solver": "cp-sat",
+    "status": "INFEASIBLE",
+    "elapsed_s": 0.0,
+    "budget_s": 60,
+    "workers": 4,
+    "seed": 42,
+    "wall_time_s": 0.0,
+    "hint": false
+  },
+  "witness_at_infeasible": null
+}

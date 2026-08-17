@@ -1,0 +1,9 @@
+2026-08-17 10:14:20 INFO [Case1] 重放校验：N=4 Tmax=8.6819 h Tmin=8.2186 h
+2026-08-17 10:14:20 INFO [Case1] 点数=52（I=5 II=10 III=37），展开任务数 M=72
+2026-08-17 10:14:20 INFO [Case2] 重放校验：N=2 Tmax=7.5186 h Tmin=7.4950 h
+2026-08-17 10:14:20 INFO [Case2] 点数=99（I=10 II=20 III=69），展开任务数 M=139
+2026-08-17 10:14:20 INFO [Case3] 重放校验：N=5 Tmax=8.1489 h Tmin=8.0203 h
+2026-08-17 10:14:20 INFO [Case3] 点数=100（I=10 II=20 III=70），展开任务数 M=140
+2026-08-17 10:14:20 INFO [Case4] 重放校验：N=4 Tmax=8.3811 h Tmin=8.3258 h
+2026-08-17 10:14:20 INFO [Case4] 点数=130（I=13 II=26 III=91），展开任务数 M=182
+2026-08-17 10:14:20 INFO 校验报告已写入 D:\code_warehouse\Projects\shumo3\outputs\workbooks\q1_verification_report.md（违规 0 条）

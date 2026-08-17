@@ -1,0 +1,28 @@
+{
+  "case": "Case1",
+  "n": 3,
+  "track": "cpsat",
+  "kind": "unknown",
+  "M": 72,
+  "generated_at": "2026-08-17 10:13:36",
+  "n_lb": 2,
+  "served": null,
+  "routes": null,
+  "stats": null,
+  "Tmax_s": null,
+  "sum_T_s": null,
+  "verification": {
+    "n_violations": 0
+  },
+  "solver": {
+    "solver": "cp-sat",
+    "status": "UNKNOWN",
+    "elapsed_s": 1800.442,
+    "budget_s": 1800,
+    "workers": 8,
+    "seed": 42,
+    "wall_time_s": 1800.436,
+    "hint": true
+  },
+  "witness_at_infeasible": null
+}

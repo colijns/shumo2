@@ -1,0 +1,63 @@
+{
+  "case": "SynthB",
+  "n": 2,
+  "track": "cpsat",
+  "kind": "feasible",
+  "M": 2,
+  "generated_at": "2026-08-17 09:43:10",
+  "n_lb": 1,
+  "served": 2,
+  "routes": [
+    [
+      1
+    ],
+    [
+      2
+    ]
+  ],
+  "stats": [
+    {
+      "n_tasks": 1,
+      "fly_s": 1310,
+      "dist_km": 20.0,
+      "work_s": 1610,
+      "work_h": 0.44722222222222224,
+      "task_seq": [
+        1
+      ],
+      "point_seq": [
+        1
+      ]
+    },
+    {
+      "n_tasks": 1,
+      "fly_s": 1310,
+      "dist_km": 20.0,
+      "work_s": 1610,
+      "work_h": 0.44722222222222224,
+      "task_seq": [
+        2
+      ],
+      "point_seq": [
+        1
+      ]
+    }
+  ],
+  "Tmax_s": 1610,
+  "sum_T_s": 3220,
+  "verification": {
+    "n_violations": 0
+  },
+  "solver": {
+    "solver": "cp-sat",
+    "status": "OPTIMAL",
+    "elapsed_s": 0.005,
+    "budget_s": 60,
+    "workers": 4,
+    "seed": 42,
+    "wall_time_s": 0.005,
+    "hint": false,
+    "stage": "F"
+  },
+  "witness_at_infeasible": null
+}

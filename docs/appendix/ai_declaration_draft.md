@@ -64,6 +64,12 @@
 - 验证：六项检查（任务不重不漏、巡检次数、相邻不重复、路线闭合非空、单机 ≤9 h、指标复算一致）0 违规；`python solve_q1.py --verify` 可脱离求解器从解档案 + 原始附件独立复算；解档案 outputs/workbooks/q1_solution_Case*.json。
 - 复现性：OR-Tools 局部搜索无随机种子接口，论文数字一律以解档案为准（决策记录见 docs/adr/0001）。
 
+#### 【本届赛题：A题 低空经济多无人机巡检】问题1 第二轮优化（2026-08-17）
+- 依据：docs/问题1后续优化方向与决策清单.md；工具：Claude Code（DeepSeek-V4-Pro）；十项设计决策经用户逐项确认后执行。
+- 内容：新文件 Q1/tight_search.py（对 solve_q1.py 零修改，import 复用）——紧档 Case1=3 架、Case3=4 架双轨道并行各 30 min（轨道 A OR-Tools GLS 固定 N 精修；轨道 B CP-SAT 可行性模型：共享基地节点 + AddMultipleCircuit + 时间流变量 + 同点禁排弧建模期剔除，含 INFEASIBLE 可行见证矛盾校验），四算例现行 N 压缩轨道（Case3 靶值 ≤29102 s），8 进程编排、原子写 checkpoint、--smoke 强制门（8/8 通过）、--promote 选优（候选重验证后写正式档案）。
+- 结果：紧档未突破（Case1 N=3 最优 served 66/72、Case3 N=4 最优 131/140；CP-SAT 两档预算耗尽 UNKNOWN，未构成不可行证明）；压缩轨道与基线逐秒一致；正式结果维持 4/2/5/4 架不变（Case2 仍为 PROVEN_BY_LOWER_BOUND，其余 BEST_FEASIBLE_NOT_PROVEN）。
+- 验证：promote 全链路重验证 0 违规，`python solve_q1.py --verify` 六项检查通过；严格下界按代码计算值口径修订（Case1=2、Case3=3、Case4=3）。
+
 ### 2.3 报告撰写环节
 - AI 辅助生成初稿文字与公式排版；数据口径、结论与表述经人工逐项核对。
 

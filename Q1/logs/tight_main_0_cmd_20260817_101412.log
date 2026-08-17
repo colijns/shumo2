@@ -1,0 +1,20 @@
+2026-08-17 10:14:13 INFO [Case1] 点数=52（I=5 II=10 III=37），展开任务数 M=72
+2026-08-17 10:14:13 INFO [Case1] 下界：服务量=1，MST=626.831 km → MST下界=2，N_LB=2
+2026-08-17 10:14:13 INFO [Case1] promote 选中 baseline：N=4 Tmax=8.6819 h（基线 N=4 8.6819 h）BEST_FEASIBLE_NOT_PROVEN
+2026-08-17 10:14:13 INFO [Case2] 点数=99（I=10 II=20 III=69），展开任务数 M=139
+2026-08-17 10:14:13 INFO [Case2] 下界：服务量=2，MST=112.194 km → MST下界=2，N_LB=2
+2026-08-17 10:14:13 INFO [Case2] promote 选中 baseline：N=2 Tmax=7.5186 h（基线 N=2 7.5186 h）PROVEN_BY_LOWER_BOUND
+2026-08-17 10:14:13 INFO [Case3] 点数=100（I=10 II=20 III=70），展开任务数 M=140
+2026-08-17 10:14:13 INFO [Case3] 下界：服务量=2，MST=701.314 km → MST下界=3，N_LB=3
+2026-08-17 10:14:13 INFO [Case3] promote 选中 baseline：N=5 Tmax=8.1489 h（基线 N=5 8.1489 h）BEST_FEASIBLE_NOT_PROVEN
+2026-08-17 10:14:13 INFO [Case4] 点数=130（I=13 II=26 III=91），展开任务数 M=182
+2026-08-17 10:14:13 INFO [Case4] 下界：服务量=2，MST=518.891 km → MST下界=3，N_LB=3
+2026-08-17 10:14:13 INFO [Case4] promote 选中 baseline：N=4 Tmax=8.3811 h（基线 N=4 8.3811 h）BEST_FEASIBLE_NOT_PROVEN
+2026-08-17 10:14:13 INFO result1.xlsx 已写入 D:\code_warehouse\Projects\shumo3\outputs\workbooks\result1.xlsx
+2026-08-17 10:14:13 INFO summary_q1.xlsx 已写入 D:\code_warehouse\Projects\shumo3\outputs\workbooks\summary_q1.xlsx
+2026-08-17 10:14:13 INFO [Case1] 点数=52（I=5 II=10 III=37），展开任务数 M=72
+2026-08-17 10:14:13 INFO [Case2] 点数=99（I=10 II=20 III=69），展开任务数 M=139
+2026-08-17 10:14:13 INFO [Case3] 点数=100（I=10 II=20 III=70），展开任务数 M=140
+2026-08-17 10:14:13 INFO [Case4] 点数=130（I=13 II=26 III=91），展开任务数 M=182
+2026-08-17 10:14:13 INFO 校验报告已写入 D:\code_warehouse\Projects\shumo3\outputs\workbooks\q1_verification_report.md（违规 0 条）
+2026-08-17 10:14:13 INFO promote 完成：违规 0 条

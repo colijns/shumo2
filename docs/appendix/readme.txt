@@ -50,3 +50,12 @@ Q1/diagnostics/diag_firstsol.py         首解策略对照实验（NextVar 约�
 Q1/diagnostics/diag_kmeans.py           kmeans 构造器再平衡插桩（震荡问题定位）
 Q1/diagnostics/diag_rebal.py            再平衡平台期插桩
 Q1/diagnostics/diag_ctor.py             双构造器独立验证脚本
+Q1/tight_search.py                      问题1 第二轮优化：紧档（Case1=3、
+                                        Case3=4）双轨道搜索（CP-SAT 可行性 +
+                                        GLS 精修）+ 四算例压缩轨道 +
+                                        --smoke 门/--orchestrate 编排/
+                                        --promote 选优（2026-08-17）
+Q1/logs/tight_<case>_N<n>_<track>_<ts>.log  第二轮各轨道日志
+Q1/logs/tight_curve_<case>_N<n>.csv     轨道A GLS 收敛曲线
+outputs/workbooks/tight_checkpoint_*.json  轨道检查点（原子写，按 case/n/track 唯一化）
+outputs/workbooks/baseline_20260816/    第二轮开工前现行成果备份

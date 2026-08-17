@@ -1,0 +1,44 @@
+2026-08-17 09:43:09 INFO [Case1] 点数=52（I=5 II=10 III=37），展开任务数 M=72
+2026-08-17 09:43:09 INFO SMOKE PASS: S3 弧数 Case1 N=3
+2026-08-17 09:43:09 INFO [Case3] 点数=100（I=10 II=20 III=70），展开任务数 M=140
+2026-08-17 09:43:10 INFO SMOKE PASS: S3 弧数 Case3 N=4
+2026-08-17 09:43:10 INFO [SynthA] 下界：服务量=1，MST=20.000 km → MST下界=1，N_LB=1
+2026-08-17 09:43:10 INFO [SynthA] CP-SAT N=1 建模完成：弧=6 禁排剔除=0
+2026-08-17 09:43:10 INFO [SynthA] CP-SAT hint 已注入（1 条路线，最长 2836 s）
+2026-08-17 09:43:10 INFO [SynthA] CP-SAT 阶段F：status=OPTIMAL 耗时 0.0 s
+2026-08-17 09:43:10 INFO [SynthA] CP-SAT 阶段F 得解：served=2 Tmax=2836 s
+2026-08-17 09:43:10 INFO [SynthA] CP-SAT checkpoint 已写入（kind=feasible）
+2026-08-17 09:43:10 INFO SMOKE PASS: S4a 合成小例 N=1 不同点
+2026-08-17 09:43:10 INFO [SynthB] 下界：服务量=1，MST=10.000 km → MST下界=1，N_LB=1
+2026-08-17 09:43:10 INFO [SynthB] CP-SAT N=1 建模完成：弧=4 禁排剔除=2
+2026-08-17 09:43:10 INFO [SynthB] CP-SAT 阶段F：status=INFEASIBLE 耗时 0.0 s
+2026-08-17 09:43:10 INFO [SynthB] CP-SAT 证明 N=1 不可行（无矛盾见证，矛盾校验通过）
+2026-08-17 09:43:10 INFO [SynthB] CP-SAT checkpoint 已写入（kind=infeasibility_proof）
+2026-08-17 09:43:10 INFO SMOKE PASS: S4b 同点 N=1 必须 INFEASIBLE
+2026-08-17 09:43:10 INFO [SynthB] 下界：服务量=1，MST=10.000 km → MST下界=1，N_LB=1
+2026-08-17 09:43:10 INFO [SynthB] CP-SAT N=2 建模完成：弧=4 禁排剔除=2
+2026-08-17 09:43:10 INFO 构造器 sweep N=2 异常：list index out of range
+2026-08-17 09:43:10 INFO [SynthB] CP-SAT 阶段F：status=OPTIMAL 耗时 0.0 s
+2026-08-17 09:43:10 INFO [SynthB] CP-SAT 阶段F 得解：served=2 Tmax=1610 s
+2026-08-17 09:43:10 INFO [SynthB] CP-SAT checkpoint 已写入（kind=feasible）
+2026-08-17 09:43:10 INFO SMOKE PASS: S4c 同点 N=2 必须 FEASIBLE
+2026-08-17 09:43:10 INFO [Case1] 点数=52（I=5 II=10 III=37），展开任务数 M=72
+2026-08-17 09:43:10 INFO SMOKE PASS: S5 基线管线
+2026-08-17 09:43:10 INFO [Case1] 下界：服务量=1，MST=626.831 km → MST下界=2，N_LB=2
+2026-08-17 09:43:10 INFO [Case1] CP-SAT N=4 建模完成：弧=5206 禁排剔除=50
+2026-08-17 09:43:10 INFO [Case1] CP-SAT hint 已注入（4 条路线，最长 31255 s）
+2026-08-17 09:43:11 INFO [Case1] CP-SAT 阶段F：status=OPTIMAL 耗时 0.7 s
+2026-08-17 09:43:11 INFO [Case1] CP-SAT 阶段F 得解：served=72 Tmax=31255 s
+2026-08-17 09:43:11 INFO [Case1] CP-SAT 阶段O：status=MODEL_INVALID 耗时 0.0 s
+2026-08-17 09:43:11 INFO [Case1] CP-SAT checkpoint 已写入（kind=feasible）
+2026-08-17 09:43:11 INFO SMOKE PASS: S2 Case1 N=4 CP-SAT
+2026-08-17 09:43:11 INFO [Case2] 点数=99（I=10 II=20 III=69），展开任务数 M=139
+2026-08-17 09:43:11 INFO [Case2] 下界：服务量=2，MST=112.194 km → MST下界=2，N_LB=2
+2026-08-17 09:43:11 INFO [Case2] CP-SAT N=2 建模完成：弧=19360 禁排剔除=100
+2026-08-17 09:43:11 INFO [Case2] CP-SAT hint 已注入（2 条路线，最长 27067 s）
+2026-08-17 09:43:15 INFO [Case2] CP-SAT 阶段F：status=OPTIMAL 耗时 4.0 s
+2026-08-17 09:43:15 INFO [Case2] CP-SAT 阶段F 得解：served=139 Tmax=27067 s
+2026-08-17 09:43:15 INFO [Case2] CP-SAT 阶段O：status=MODEL_INVALID 耗时 0.0 s
+2026-08-17 09:43:15 INFO [Case2] CP-SAT checkpoint 已写入（kind=feasible）
+2026-08-17 09:43:15 INFO SMOKE PASS: S1 Case2 N=2 CP-SAT
+2026-08-17 09:43:15 INFO SMOKE 汇总：全部 PASS

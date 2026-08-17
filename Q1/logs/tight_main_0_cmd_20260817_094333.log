@@ -1,0 +1,17 @@
+2026-08-17 09:43:33 INFO 拉起：E:\Software\Scoop\Apps\miniconda3\current\envs\math\python.exe D:\code_warehouse\Projects\shumo3\Q1\tight_search.py --case Case1 --n 3 --track ortools --budget 1800 --seed 42
+2026-08-17 09:43:33 INFO 拉起：E:\Software\Scoop\Apps\miniconda3\current\envs\math\python.exe D:\code_warehouse\Projects\shumo3\Q1\tight_search.py --case Case1 --n 3 --track cpsat --budget 1800 --seed 42 --workers 8
+2026-08-17 09:43:33 INFO 拉起：E:\Software\Scoop\Apps\miniconda3\current\envs\math\python.exe D:\code_warehouse\Projects\shumo3\Q1\tight_search.py --case Case3 --n 4 --track ortools --budget 1800 --seed 42
+2026-08-17 09:43:33 INFO 拉起：E:\Software\Scoop\Apps\miniconda3\current\envs\math\python.exe D:\code_warehouse\Projects\shumo3\Q1\tight_search.py --case Case3 --n 4 --track cpsat --budget 1800 --seed 42 --workers 8
+2026-08-17 09:43:33 INFO 拉起：E:\Software\Scoop\Apps\miniconda3\current\envs\math\python.exe D:\code_warehouse\Projects\shumo3\Q1\tight_search.py --case Case1 --n 4 --track compress --budget 1800 --seed 42
+2026-08-17 09:43:33 INFO 拉起：E:\Software\Scoop\Apps\miniconda3\current\envs\math\python.exe D:\code_warehouse\Projects\shumo3\Q1\tight_search.py --case Case2 --n 2 --track compress --budget 1800 --seed 42
+2026-08-17 09:43:33 INFO 拉起：E:\Software\Scoop\Apps\miniconda3\current\envs\math\python.exe D:\code_warehouse\Projects\shumo3\Q1\tight_search.py --case Case3 --n 5 --track compress --budget 1800 --seed 42
+2026-08-17 09:43:33 INFO 拉起：E:\Software\Scoop\Apps\miniconda3\current\envs\math\python.exe D:\code_warehouse\Projects\shumo3\Q1\tight_search.py --case Case4 --n 4 --track compress --budget 1800 --seed 42
+2026-08-17 10:13:35 INFO 子进程 Case1_N3_ortools 完成
+2026-08-17 10:13:36 INFO 子进程 Case1_N3_cpsat 完成
+2026-08-17 10:13:38 INFO 子进程 Case3_N4_ortools 完成
+2026-08-17 10:13:43 INFO 子进程 Case3_N4_cpsat 完成
+2026-08-17 10:13:43 INFO 子进程 Case1_N4_compress 完成
+2026-08-17 10:13:43 INFO 子进程 Case2_N2_compress 完成
+2026-08-17 10:13:43 INFO 子进程 Case3_N5_compress 完成
+2026-08-17 10:13:50 INFO 子进程 Case4_N4_compress 完成
+2026-08-17 10:13:50 INFO 编排结束：8/8 成功

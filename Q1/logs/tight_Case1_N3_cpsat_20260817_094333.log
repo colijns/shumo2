@@ -1,0 +1,7 @@
+2026-08-17 09:43:34 INFO [Case1] 点数=52（I=5 II=10 III=37），展开任务数 M=72
+2026-08-17 09:43:34 INFO [Case1] 下界：服务量=1，MST=626.831 km → MST下界=2，N_LB=2
+2026-08-17 09:43:34 INFO [Case1] CP-SAT N=3 建模完成：弧=5206 禁排剔除=50
+2026-08-17 09:43:35 INFO [Case1] CP-SAT hint 已注入（3 条路线，最长 39999 s）
+2026-08-17 10:13:36 INFO [Case1] CP-SAT 阶段F：status=UNKNOWN 耗时 1800.4 s
+2026-08-17 10:13:36 INFO [Case1] CP-SAT 未决：unknown（不构成不可行结论）
+2026-08-17 10:13:36 INFO [Case1] CP-SAT checkpoint 已写入（kind=unknown）

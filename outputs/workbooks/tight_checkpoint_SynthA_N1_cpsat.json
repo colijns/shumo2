@@ -1,0 +1,50 @@
+{
+  "case": "SynthA",
+  "n": 1,
+  "track": "cpsat",
+  "kind": "feasible",
+  "M": 2,
+  "generated_at": "2026-08-17 09:43:10",
+  "n_lb": 1,
+  "served": 2,
+  "routes": [
+    [
+      1,
+      2
+    ]
+  ],
+  "stats": [
+    {
+      "n_tasks": 2,
+      "fly_s": 2236,
+      "dist_km": 34.142136,
+      "work_s": 2836,
+      "work_h": 0.7877777777777778,
+      "task_seq": [
+        1,
+        2
+      ],
+      "point_seq": [
+        1,
+        2
+      ]
+    }
+  ],
+  "Tmax_s": 2836,
+  "sum_T_s": 2836,
+  "verification": {
+    "n_violations": 0
+  },
+  "solver": {
+    "solver": "cp-sat",
+    "status": "OPTIMAL",
+    "elapsed_s": 0.004,
+    "budget_s": 60,
+    "workers": 4,
+    "seed": 42,
+    "wall_time_s": 0.003,
+    "hint": true,
+    "stage": "F"
+  },
+  "witness_at_infeasible": null
+}
