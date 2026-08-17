@@ -73,6 +73,7 @@ def build_solution_archive(problem: ProblemData, candidate: ScoredCandidate) -> 
         "schema_version": SOLUTION_SCHEMA,
         "case": problem.case_name,
         "fleet_size": problem.fleet_size,
+        "parent_archive_sha256": problem.archive_sha256,
         "input": {
             "problem_contract_sha256": problem.problem_contract_sha256,
             "attachment_sha256": problem.attachment_sha256,
