@@ -367,6 +367,18 @@ def test_load_problem_rejects_non_exact_uav_id(synthetic_parent, uav_id):
         load_problem("Case1", attachment_path=attachment, archive_path=archive_path)
 
 
+@pytest.mark.parametrize("field, value", (("N", 4.0), ("N", True), ("n_tasks", 2.0), ("fly_s", True), ("work_s", 1.0)))
+def test_load_problem_rejects_non_exact_integer_archive_fields(synthetic_parent, field, value):
+    attachment, archive_path, original = synthetic_parent
+    malformed = copy.deepcopy(original)
+    target = malformed if field == "N" else malformed["uavs"][0]
+    target[field] = value
+    archive_path.write_text(json.dumps(malformed), encoding="utf-8")
+
+    with pytest.raises(ParentArchiveError, match="exact integer"):
+        load_problem("Case1", attachment_path=attachment, archive_path=archive_path)
+
+
 @pytest.mark.parametrize("task_id", (1.9, "2", True, None))
 def test_normalize_routes_rejects_non_exact_task_ids(task_id):
     with pytest.raises(ValueError, match="exact integers"):

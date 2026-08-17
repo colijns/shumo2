@@ -105,8 +105,8 @@ def _validate_header(case_name: str, archive: dict[str, Any]) -> list[dict[str, 
     expected = FLEET_SIZE_BY_CASE.get(case_name)
     if expected is None:
         raise ParentArchiveError(f"unsupported case {case_name!r}")
-    if archive.get("N") != expected:
-        raise ParentArchiveError(f"parent fixed fleet N must be {expected}")
+    if type(archive.get("N")) is not int or archive["N"] != expected:
+        raise ParentArchiveError(f"parent fixed fleet N must be exact integer {expected}")
     uavs = archive.get("uavs")
     if not isinstance(uavs, list) or len(uavs) != expected:
         raise ParentArchiveError(f"parent must contain fixed fleet of {expected} UAV records")
@@ -174,8 +174,11 @@ def _validate_route_metrics(uavs: list[dict[str, Any]], metrics: Any) -> None:
             "work_s": replayed.work_s,
         }
         for field, expected in checks.items():
-            if field in record and record[field] != expected:
-                raise ParentArchiveError(f"UAV {index} archived {field} mismatch: {record[field]} != {expected}")
+            if field in record:
+                if type(record[field]) is not int:
+                    raise ParentArchiveError(f"UAV {index} archived {field} must be an exact integer")
+                if record[field] != expected:
+                    raise ParentArchiveError(f"UAV {index} archived {field} mismatch: {record[field]} != {expected}")
         if "dist_km" in record and not _close_float(float(record["dist_km"]), round(replayed.distance_km, 6)):
             raise ParentArchiveError(f"UAV {index} archived dist_km mismatch")
         if "work_h" in record and not _close_float(float(record["work_h"]), replayed.work_s / 3600.0):
