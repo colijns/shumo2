@@ -102,7 +102,8 @@ def _perturb(
         return None, 0
     proposal = proposals[randomizer.randrange(len(proposals))]
     normalized = _normalize_all_routes(problem, proposal)
-    return score_candidate(problem, normalized), 1
+    candidate = score_candidate(problem, normalized)
+    return candidate, 1
 
 
 def _ordered_move_candidates(problem: ProblemData, routes: Routes):
