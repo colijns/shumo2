@@ -1,0 +1,21 @@
+{
+  "generated_at": "2026-08-18 19:50:10",
+  "schema_version": "result-finalization-v1",
+  "q1": {
+    "result_xlsx": "outputs/workbooks/result1.xlsx",
+    "violations": []
+  },
+  "q2": {
+    "result_xlsx": "outputs/workbooks/result2.xlsx",
+    "violations": []
+  },
+  "q3": {
+    "result_xlsx": "outputs/workbooks/result3.xlsx",
+    "violations": []
+  },
+  "root_copies": {
+    "result1.xlsx": "0987ffe8d8a59086c7f5a2cfcecceed7293f5b6c30996c94aeb20f223833ff76",
+    "result2.xlsx": "c136d9c988d41f9eb0ecf983d3bf8780f8db593f0c3c3a05c233cd5d65caa53d",
+    "result3.xlsx": "7d02082f74c9de5247b81e774276971653c832bf301c8ddacf81fe37ce914bee"
+  }
+}
