@@ -1,0 +1,21 @@
+{
+  "cases": {
+    "Case1": {
+      "verified": true,
+      "violations": []
+    },
+    "Case2": {
+      "verified": true,
+      "violations": []
+    },
+    "Case3": {
+      "verified": true,
+      "violations": []
+    },
+    "Case4": {
+      "verified": true,
+      "violations": []
+    }
+  },
+  "schema_version": "q3-verify-report-v1"
+}

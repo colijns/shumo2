@@ -1,0 +1,17 @@
+Traceback (most recent call last):
+  File "E:\Software\Scoop\apps\miniconda3\current\envs\math\lib\runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "E:\Software\Scoop\apps\miniconda3\current\envs\math\lib\runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "D:\code_warehouse\Projects\shumo3\Q3\solve_q3.py", line 226, in <module>
+    sys.exit(main())
+  File "D:\code_warehouse\Projects\shumo3\Q3\solve_q3.py", line 190, in main
+    result = _solve_and_publish(case, config, root)
+  File "D:\code_warehouse\Projects\shumo3\Q3\solve_q3.py", line 121, in _solve_and_publish
+    solution = solve_case(case, config, repository_root=repository_root)
+  File "D:\code_warehouse\Projects\shumo3\Q3\search.py", line 446, in solve_case
+    pool = build_initial_solutions(problem, None, k=8, repository_root=repository_root)
+  File "D:\code_warehouse\Projects\shumo3\Q3\search.py", line 252, in build_initial_solutions
+    raise RuntimeError(f"{problem.case}: no feasible initial solution (fail closed)")
+RuntimeError: Case2: no feasible initial solution (fail closed)
+Case1: S_max=31255s delta=102s sum_T=124768s wait=0s dist=1575.654km

@@ -4,6 +4,7 @@
 
 | 工具名称 | 版本 | 开发公司 | 使用日期 | 主要用途 |
 |----------|------|----------|----------|----------|
+| Claude Code | DeepSeek-V4-Flash | Anthropic（模型：DeepSeek） | 2026-08-18 | A题问题1~3 论文配图绘制（图1~图12 及 Case2 绕行细节图，13 张×png/pdf 双格式） |
 | ZCode（GLM） | GLM-5.3 | 北京智谱华章科技有限公司 | 2026-08-16 起 | 问题1 求解代码编写（OR-Tools 两阶段管线）、算法诊断与调参、结果校验、附录文档维护 |
 | Claude Code | DeepSeek-V4-Pro | Anthropic（模型：DeepSeek） | 2026-08-17 | 问题1 第二轮优化（Q1/tight_search.py：CP-SAT 紧档可行性模型、GLS 固定 N 精修、四算例压缩轨道、8 进程编排、promote 选优与独立校验）、文档同步 |
 | Codex | GPT-5（Codex） | OpenAI | 2026-08-18 | 问题3 冲突聚焦邻域设计、短时对照试验、合法性复核与试验说明整理 |
