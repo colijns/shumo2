@@ -72,3 +72,5 @@ tests/q3/test_search.py                 问题3 冲突边识别、合法性和�
 q3_conflict_focus_smoke.py              Case2/Case3 同起点同预算短时对照脚本
 q3_conflict_focus_run.py                从问题3严格档案续跑冲突聚焦搜索，候选解
                                         单独保存且通过完整校验后才写入运行目录
+q3_conflict_focus_finalize.py           独立复核四个候选档案并生成隔离的路线档案、
+                                        时间表、汇总文件和结果工作簿
