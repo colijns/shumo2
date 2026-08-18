@@ -1,6 +1,6 @@
 ============================================================
  数学建模竞赛 源程序与附件使用说明
- 赛题：A题 低空经济背景下的多无人机协同巡检路径优化（问题1）
+ 赛题：A题 低空经济背景下的多无人机协同巡检路径优化（问题1、问题3）
  队伍编号：（待填）
  提交日期：2026-08-16
 ============================================================
@@ -27,6 +27,9 @@
 6. 求解口径：I/II/III 级展开 3/2/1 任务；坐标×0.1 km；飞行时间逐段
    向上取整到秒；单次巡检 300 s；单机上限 32400 s；同点任务禁止相邻
    （先离开再返回）；两阶段词典序（最小可行 N → 压 Tmax）。
+7. 问题3 冲突聚焦小样本对照：
+   python q3_conflict_focus_smoke.py --cases Case2 Case3 --budget 10 --top-edges 12
+   （从现有严格档案出发；试验检查点写入临时目录，不覆盖正式结果。）
 
 四、AI 使用说明
 - AI 工具信息表：docs/appendix/interaction_logs/ai_tools.md
@@ -59,3 +62,10 @@ Q1/logs/tight_<case>_N<n>_<track>_<ts>.log  第二轮各轨道日志
 Q1/logs/tight_curve_<case>_N<n>.csv     轨道A GLS 收敛曲线
 outputs/workbooks/tight_checkpoint_*.json  轨道检查点（原子写，按 case/n/track 唯一化）
 outputs/workbooks/baseline_20260816/    第二轮开工前现行成果备份
+Q3/domain.py                            问题3 配置项：冲突聚焦开关、聚焦航段数、
+                                        完整邻域回退开关
+Q3/search.py                            问题3 冲突航段排序、聚焦邻域与严格截止时间
+tests/q3/test_search.py                 问题3 冲突边识别、合法性和截止时间回归检查
+q3_conflict_focus_smoke.py              Case2/Case3 同起点同预算短时对照脚本
+q3_conflict_focus_run.py                从问题3严格档案续跑冲突聚焦搜索，候选解
+                                        单独保存且通过完整校验后才写入运行目录
