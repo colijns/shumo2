@@ -94,7 +94,9 @@ def main() -> None:
     parser.add_argument("--top-edges", type=int, default=12)
     args = parser.parse_args()
 
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    # Microseconds keep output directories unique when independent cases are
+    # launched in parallel on a multi-core machine.
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     run_dir = RUNS_DIR / stamp
     run_dir.mkdir(parents=True, exist_ok=False)
     progress_path = run_dir / "progress.json"
