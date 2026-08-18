@@ -96,7 +96,8 @@ def main() -> None:
 
     # Microseconds keep output directories unique when independent cases are
     # launched in parallel on a multi-core machine.
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    case_tag = "-".join(args.cases)
+    stamp = f"{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}_{case_tag}"
     run_dir = RUNS_DIR / stamp
     run_dir.mkdir(parents=True, exist_ok=False)
     progress_path = run_dir / "progress.json"
