@@ -30,6 +30,9 @@
 7. 问题3 冲突聚焦小样本对照：
    python q3_conflict_focus_smoke.py --cases Case2 Case3 --budget 10 --top-edges 12
    （从现有严格档案出发；试验检查点写入临时目录，不覆盖正式结果。）
+8. 问题3 冲突聚焦完整续跑（四算例各 1800 s）：
+   python q3_conflict_focus_run.py --cases Case1 Case2 Case3 Case4 --budget 1800 --top-edges 12
+   （每个算例结束即保存候选档案与 progress.json，并独立校验。）
 
 四、AI 使用说明
 - AI 工具信息表：docs/appendix/interaction_logs/ai_tools.md

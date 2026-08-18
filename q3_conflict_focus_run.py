@@ -97,10 +97,51 @@ def main() -> None:
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     run_dir = RUNS_DIR / stamp
     run_dir.mkdir(parents=True, exist_ok=False)
-    results = [
-        run_case(case, max(args.budget, 0), max(args.top_edges, 1), run_dir)
-        for case in args.cases
-    ]
+    progress_path = run_dir / "progress.json"
+    progress = {
+        "schema_version": "q3-conflict-focus-progress-v1",
+        "started_at": datetime.now().isoformat(timespec="seconds"),
+        "updated_at": datetime.now().isoformat(timespec="seconds"),
+        "branch": "q3-conflict-focus-run",
+        "status": "running",
+        "planned_cases": args.cases,
+        "budget_s_per_case": max(args.budget, 0),
+        "conflict_top_edges": max(args.top_edges, 1),
+        "results": [],
+    }
+    atomic_write_json(progress_path, progress)
+    results = []
+    for index, case in enumerate(args.cases, start=1):
+        print(
+            f"[{index}/{len(args.cases)}] {case}: start "
+            f"(budget={max(args.budget, 0)}s)",
+            flush=True,
+        )
+        try:
+            result = run_case(
+                case,
+                max(args.budget, 0),
+                max(args.top_edges, 1),
+                run_dir,
+            )
+        except Exception as exc:
+            progress["status"] = "failed"
+            progress["failed_case"] = case
+            progress["error"] = str(exc)
+            progress["updated_at"] = datetime.now().isoformat(timespec="seconds")
+            atomic_write_json(progress_path, progress)
+            raise
+        results.append(result)
+        progress["results"] = results
+        progress["updated_at"] = datetime.now().isoformat(timespec="seconds")
+        atomic_write_json(progress_path, progress)
+        candidate = result["candidate"]
+        print(
+            f"[{index}/{len(args.cases)}] {case}: verified "
+            f"S_max={candidate['S_max_s']}s delta={candidate['delta_s']}s "
+            f"improved={result['improved']}",
+            flush=True,
+        )
     summary = {
         "schema_version": "q3-conflict-focus-run-v1",
         "created_at": datetime.now().isoformat(timespec="seconds"),
@@ -109,6 +150,9 @@ def main() -> None:
     }
     summary_path = run_dir / "summary.json"
     atomic_write_json(summary_path, summary)
+    progress["status"] = "completed"
+    progress["updated_at"] = datetime.now().isoformat(timespec="seconds")
+    atomic_write_json(progress_path, progress)
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     print(f"summary_path={summary_path}")
 
