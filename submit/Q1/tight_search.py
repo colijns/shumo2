@@ -1,32 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import argparse
 import json
 import logging
@@ -38,9 +9,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-
 import pandas as pd
-
 HERE = Path(__file__).resolve().parent
 sys.path.append(str(HERE))
 import solve_q1
@@ -51,24 +20,18 @@ from solve_q1 import (
     write_reports, write_result1, write_summary,
 )
 from ortools.sat.python import cp_model
-
-
 TIGHT_N = {"Case1": 3, "Case3": 4}
 COMPRESS_N = {"Case1": 4, "Case2": 2, "Case3": 5, "Case4": 4}
 C3_TARGET_S = 29102
 SEED_DEFAULT = 42
 WORKERS_DEFAULT = 8
 CPK_DIR = OUT_DIR
-
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 except Exception:
     pass
-
 logger = logging.getLogger("tight")
-
-
 def setup_logging(ts: str, suffix: str = "") -> None:
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     logger.setLevel(logging.INFO)
@@ -79,21 +42,15 @@ def setup_logging(ts: str, suffix: str = "") -> None:
     sh.setFormatter(fmt)
     for h in (fh, sh):
         logger.addHandler(h)
-
     q1 = logging.getLogger("q1")
     q1.handlers.clear()
     q1.addHandler(fh)
     q1.addHandler(sh)
     q1.setLevel(logging.INFO)
     q1.propagate = False
-
-
-
 def cp_path(case: str, n: int, track: str) -> Path:
     prefix = "tight_compress" if track == "compress" else "tight_checkpoint"
     return CPK_DIR / f"{prefix}_{case}_N{n}_{track}.json"
-
-
 def write_atomic(path: Path, obj: dict) -> None:
     fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=path.name, suffix=".tmp")
     try:
@@ -104,19 +61,13 @@ def write_atomic(path: Path, obj: dict) -> None:
         if os.path.exists(tmp):
             os.remove(tmp)
         raise
-
-
 def better(a: dict, b: dict) -> bool:
-
     if a["served"] != b["served"]:
         return a["served"] > b["served"]
     if a["Tmax_s"] != b["Tmax_s"]:
         return a["Tmax_s"] < b["Tmax_s"]
     return a["sum_T_s"] < b["sum_T_s"]
-
-
 def verified_stats(case, dist_km, time_s, routes, name):
-
     non_empty = [r for r in routes if r]
     stats = evaluate(case, dist_km, time_s, non_empty)
     active = [(s["work_s"], s) for s in stats if s["n_tasks"] > 0]
@@ -130,20 +81,11 @@ def verified_stats(case, dist_km, time_s, routes, name):
     }
     viol = verify_case(case, arch)
     return stats, arch, viol
-
-
-
 def _ctx(case: dict):
     pid_of = {t["task_id"]: t["pid"] for t in case["tasks"]}
     coords = {p["pid"]: (p["x"], p["y"]) for p in case["points"]}
     return pid_of, coords
-
-
 def merge_warm_starts(case: dict, time_s, base_routes, n_target: int, seed: int):
-
-
-
-
     pid_of, coords = _ctx(case)
     rng = random.Random(seed + 1000 * n_target + len(base_routes))
     cands, seen = [], set()
@@ -184,10 +126,7 @@ def merge_warm_starts(case: dict, time_s, base_routes, n_target: int, seed: int)
                     seen.add(key)
                     cands.append((routes, f"merge_del{k}_{oname}"))
     return cands
-
-
 def build_candidates(case: dict, time_s, n: int, seed: int, baseline_arch=None):
-
     M = len(case["tasks"])
     cands = []
     if baseline_arch is not None:
@@ -205,30 +144,21 @@ def build_candidates(case: dict, time_s, n: int, seed: int, baseline_arch=None):
         if routes is not None and sum(len(r) for r in routes) == M:
             cands.append((routes, f"ctor_{cname}"))
     return cands
-
-
-
 def build_cp_model(case: dict, time_s, n: int):
-
     M = len(case["tasks"])
     pid_of = {t["task_id"]: t["pid"] for t in case["tasks"]}
-
     model = cp_model.CpModel()
-
     t = {}
     for i in range(1, M + 1):
         ub = CAP_S - time_s[i][0]
         t[i] = model.NewIntVar(0, ub, f"t_{i}")
-
     arcs, arc_vars, arc_from, banned = [], {}, {}, 0
-
     def add_arc(u, v):
         lit = model.NewBoolVar(f"x_{u}_{v}")
         arcs.append((u, v, lit))
         arc_vars[(u, v)] = lit
         arc_from.setdefault(u, []).append((v, lit))
         return lit
-
     for j in range(1, M + 1):
         lit = add_arc(0, j)
         model.Add(t[j] == time_s[0][j] + SERVICE_S).OnlyEnforceIf(lit)
@@ -243,7 +173,6 @@ def build_cp_model(case: dict, time_s, n: int):
             model.Add(t[j] == t[i] + time_s[i][j] + SERVICE_S).OnlyEnforceIf(lit)
     for i in range(1, M + 1):
         add_arc(i, 0)
-
     if case["name"] in EXPECTED_ADJ:
         if banned != EXPECTED_ADJ[case["name"]]:
             raise RuntimeError(
@@ -254,10 +183,7 @@ def build_cp_model(case: dict, time_s, n: int):
     model.Add(sum(out_of_depot) <= n)
     return model, {"M": M, "n": n, "t": t, "arc_vars": arc_vars, "arc_from": arc_from,
                    "banned": banned, "n_arcs": len(arcs)}
-
-
 def add_route_hint(model, ctx, routes) -> bool:
-
     for seq in routes:
         if not seq:
             continue
@@ -275,15 +201,9 @@ def add_route_hint(model, ctx, routes) -> bool:
             return False
         model.AddHint(lit, 1)
     return True
-
-
 def _arc_cost(ctx, u, v):
-
     return ctx["time_s"][u][v] + (SERVICE_S if v > 0 else 0)
-
-
 def extract_routes(solver, ctx):
-
     routes, tour_sums = [], []
     for j in range(1, ctx["M"] + 1):
         if solver.Value(ctx["arc_vars"][(0, j)]) == 1:
@@ -301,18 +221,13 @@ def extract_routes(solver, ctx):
             routes.append(seq)
             tour_sums.append(int(solver.Value(ctx["t"][seq[-1]]) + ctx["time_s"][seq[-1]][0]))
     return routes, tour_sums
-
-
 def run_track_cpsat(case, dist_km, time_s, n: int, budget: int, seed: int, workers: int,
                     baseline_arch=None):
-
     name, M = case["name"], len(case["tasks"])
     lb = compute_lower_bounds(case)
     model, ctx = build_cp_model(case, time_s, n)
     ctx["time_s"] = time_s
     logger.info("[%s] CP-SAT N=%d 建模完成：弧=%d 禁排剔除=%d", name, n, ctx["n_arcs"], ctx["banned"])
-
-
     cands = build_candidates(case, time_s, n, seed, baseline_arch)
     witness = None
     best_hint, best_hint_work = None, None
@@ -328,7 +243,6 @@ def run_track_cpsat(case, dist_km, time_s, n: int, budget: int, seed: int, worke
             logger.info("[%s] CP-SAT hint 已注入（%d 条路线，最长 %.0f s）", name, len(best_hint), best_hint_work)
         else:
             logger.info("[%s] CP-SAT hint 注入失败（含禁排弧），无 hint 求解", name)
-
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = budget
     solver.parameters.num_search_workers = workers
@@ -337,14 +251,12 @@ def run_track_cpsat(case, dist_km, time_s, n: int, budget: int, seed: int, worke
     status = solver.Solve(model)
     elapsed = time.perf_counter() - t0
     logger.info("[%s] CP-SAT 阶段F：status=%s 耗时 %.1f s", name, status.name, elapsed)
-
     kind, routes, stats, viol = None, None, None, None
     solver_info = {
         "solver": "cp-sat", "status": status.name,
         "elapsed_s": round(elapsed, 3), "budget_s": budget, "workers": workers,
         "seed": seed, "wall_time_s": round(solver.WallTime(), 3), "hint": (best_hint is not None),
     }
-
     if status == cp_model.INFEASIBLE:
         if witness is not None:
             kind = "model_error"
@@ -376,8 +288,6 @@ def run_track_cpsat(case, dist_km, time_s, n: int, budget: int, seed: int, worke
     else:
         kind = "unknown" if status != cp_model.MODEL_INVALID else "model_error"
         logger.info("[%s] CP-SAT 未决：%s（不构成不可行结论）", name, kind)
-
-
     if kind == "feasible" and elapsed <= 600 and budget - elapsed > 60:
         tmax_var = model.NewIntVar(0, CAP_S, "Tmax")
         for i in range(1, M + 1):
@@ -405,7 +315,6 @@ def run_track_cpsat(case, dist_km, time_s, n: int, budget: int, seed: int, worke
                     logger.info("[%s] CP-SAT 阶段O 改进：Tmax=%.0f s", name, max(s["work_s"] for s in stats))
         else:
             logger.info("[%s] 阶段O 跳过（hint 注入失败）", name)
-
     checkpoint = {
         "case": name, "n": n, "track": "cpsat", "kind": kind, "M": M,
         "generated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -421,9 +330,6 @@ def run_track_cpsat(case, dist_km, time_s, n: int, budget: int, seed: int, worke
     write_atomic(cp_path(name, n, "cpsat"), checkpoint)
     logger.info("[%s] CP-SAT checkpoint 已写入（kind=%s）", name, kind)
     return checkpoint
-
-
-
 def write_cp(cand, name, n, track, M, lb, kind):
     obj = {
         "case": name, "n": n, "track": track, "kind": kind, "M": M,
@@ -435,8 +341,6 @@ def write_cp(cand, name, n, track, M, lb, kind):
         "solver": {"strategy": cand["solver"].get("strategy"), "objective": cand["solver"].get("objective")},
     }
     write_atomic(cp_path(name, n, track), obj)
-
-
 def run_track_ortools(case, dist_km, time_s, n: int, budget: int, seed: int,
                       screen_s: int = 60, chunk_s: int = 300):
     name, M = case["name"], len(case["tasks"])
@@ -449,7 +353,6 @@ def run_track_ortools(case, dist_km, time_s, n: int, budget: int, seed: int,
     s_screen = min(screen_s, max(10, budget // max(len(cands), 1)))
     deadline = time.perf_counter() + budget
     curve = []
-
     for routes, prov in cands:
         if time.perf_counter() + 5 > deadline:
             break
@@ -467,8 +370,6 @@ def run_track_ortools(case, dist_km, time_s, n: int, budget: int, seed: int,
             write_cp(best, name, n, "ortools", M, lb, "partial" if best["served"] < M else "feasible")
             logger.info("[%s] 轨道A 筛选改进（%s）：served=%d/%d Tmax=%.0f s", name, prov,
                         best["served"], M, best["Tmax_s"])
-
-
     while time.perf_counter() + 10 < deadline:
         warm = best["routes"] if best is not None else None
         rem = min(chunk_s, max(30, int(deadline - time.perf_counter())))
@@ -486,7 +387,6 @@ def run_track_ortools(case, dist_km, time_s, n: int, budget: int, seed: int,
             best = cand
             write_cp(best, name, n, "ortools", M, lb, "partial" if best["served"] < M else "feasible")
             logger.info("[%s] 轨道A 精修改进：served=%d/%d Tmax=%.0f s", name, best["served"], M, best["Tmax_s"])
-
     if curve:
         cpath = LOG_DIR / f"tight_curve_{name}_N{n}.csv"
         pd.DataFrame(curve, columns=["elapsed_s", "objective"]).to_csv(cpath, index=False)
@@ -498,9 +398,6 @@ def run_track_ortools(case, dist_km, time_s, n: int, budget: int, seed: int,
     else:
         logger.info("[%s] 轨道A 结束：无任何解", name)
     return best
-
-
-
 def run_track_compress(case, dist_km, time_s, n: int, budget: int, seed: int, chunk_s: int = 300):
     name, M = case["name"], len(case["tasks"])
     lb = compute_lower_bounds(case)
@@ -543,9 +440,6 @@ def run_track_compress(case, dist_km, time_s, n: int, budget: int, seed: int, ch
             target_note = "（靶值 %d s，%s）" % (C3_TARGET_S, "达成" if best["Tmax_s"] <= C3_TARGET_S else "未达")
         logger.info("[%s] 压缩轨道结束：Tmax=%.0f s ΣT=%.0f s%s", name, best["Tmax_s"], best["sum_T_s"], target_note)
     return best
-
-
-
 def _synthetic(name, spec):
     points = [{"pid": p[0], "x": p[1], "y": p[2], "level": p[3]} for p in spec]
     tasks = []
@@ -553,19 +447,14 @@ def _synthetic(name, spec):
         for _ in range(LEVEL_VISITS[p["level"]]):
             tasks.append({"task_id": len(tasks) + 1, "pid": p["pid"], "x": p["x"], "y": p["y"]})
     return {"name": name, "points": points, "tasks": tasks}
-
-
 def run_smoke() -> int:
     fails = []
-
     def check(cond, label, extra=""):
         if cond:
             logger.info("SMOKE PASS: %s", label)
         else:
             logger.error("SMOKE FAIL: %s %s", label, extra)
             fails.append(label)
-
-
     for name, n in TIGHT_N.items():
         case = load_case(name)
         _, time_s = build_matrices(case)
@@ -574,15 +463,12 @@ def run_smoke() -> int:
         model, ctx = build_cp_model(case, time_s, n)
         expect_arcs = M * (M - 1) - banned + 2 * M
         check(ctx["n_arcs"] == expect_arcs, f"S3 弧数 {name} N={n}", f"{ctx['n_arcs']} != {expect_arcs}")
-
-
     syn_a = _synthetic("SynthA", [(1, 100, 0, "III"), (2, 0, 100, "III")])
     da, ta = build_matrices(syn_a)
     cpa = run_track_cpsat(syn_a, da, ta, 1, 60, SEED_DEFAULT, 4)
     ok_a = cpa["kind"] == "feasible" and cpa["routes"] is not None and sum(len(r) for r in cpa["routes"]) == 2
     if ok_a:
         w = max(s["work_s"] for s in cpa["stats"])
-
         expect = ta[0][1] + SERVICE_S + ta[1][2] + SERVICE_S + ta[2][0]
         check(w == expect, "S4a 合成小例 N=1 不同点", f"work={w} != {expect}")
     else:
@@ -593,34 +479,24 @@ def run_smoke() -> int:
     check(cpb1["kind"] == "infeasibility_proof", "S4b 同点 N=1 必须 INFEASIBLE", f"kind={cpb1['kind']}")
     cpb2 = run_track_cpsat(syn_b, db, tb, 2, 60, SEED_DEFAULT, 4)
     check(cpb2["kind"] == "feasible", "S4c 同点 N=2 必须 FEASIBLE", f"kind={cpb2['kind']}")
-
-
     case1 = load_case("Case1")
     dist1, time1 = build_matrices(case1)
     arch1 = json.loads((OUT_DIR / "q1_solution_Case1.json").read_text(encoding="utf-8"))
     routes1 = [u["task_seq"] for u in arch1["uavs"] if u["task_seq"]]
     stats1, a1, viol1 = verified_stats(case1, dist1, time1, routes1, "Case1")
     check(len(viol1) == 0 and stats1 is not None and a1["N"] == 4, "S5 基线管线", f"viol={len(viol1)}")
-
-
     base1 = json.loads((OUT_DIR / "q1_solution_Case1.json").read_text(encoding="utf-8"))
     cp1 = run_track_cpsat(case1, dist1, time1, 4, 600, SEED_DEFAULT, WORKERS_DEFAULT, baseline_arch=base1)
     check(cp1["kind"] == "feasible" and cp1["served"] == len(case1["tasks"]),
           "S2 Case1 N=4 CP-SAT", f"kind={cp1['kind']} served={cp1['served']}")
-
-
     case2 = load_case("Case2")
     dist2, time2 = build_matrices(case2)
     base2 = json.loads((OUT_DIR / "q1_solution_Case2.json").read_text(encoding="utf-8"))
     cp2 = run_track_cpsat(case2, dist2, time2, 2, 300, SEED_DEFAULT, WORKERS_DEFAULT, baseline_arch=base2)
     check(cp2["kind"] == "feasible" and cp2["served"] == len(case2["tasks"]),
           "S1 Case2 N=2 CP-SAT", f"kind={cp2['kind']} served={cp2['served']}")
-
     logger.info("SMOKE 汇总：%s", "全部 PASS" if not fails else f"{len(fails)} 项 FAIL：{fails}")
     return 1 if fails else 0
-
-
-
 def run_orchestrate() -> int:
     py = sys.executable
     script = str(HERE / "tight_search.py")
@@ -651,9 +527,6 @@ def run_orchestrate() -> int:
             logger.info("子进程 %s 完成", label)
     logger.info("编排结束：%d/%d 成功", len(procs) - len(bad), len(procs))
     return 1 if bad else 0
-
-
-
 def run_promote() -> int:
     CPK_DIR.mkdir(parents=True, exist_ok=True)
     archives = {}
@@ -665,7 +538,6 @@ def run_promote() -> int:
         lb = compute_lower_bounds(case)
         M = len(case["tasks"])
         candidates = []
-
         apath = OUT_DIR / f"q1_solution_{name}.json"
         base = json.loads(apath.read_text(encoding="utf-8"))
         base_routes = [u["task_seq"] for u in base["uavs"] if u["task_seq"]]
@@ -679,7 +551,6 @@ def run_promote() -> int:
                 "routes": base_routes, "stats": stats, "viol": [],
                 "source": "baseline", "solver": {"strategy": base.get("first_solution_strategy")},
             })
-
         for cpf in list(CPK_DIR.glob(f"tight_checkpoint_{name}_N*.json")) + \
                    list(CPK_DIR.glob(f"tight_compress_{name}_N*.json")):
             cp = json.loads(cpf.read_text(encoding="utf-8"))
@@ -699,13 +570,11 @@ def run_promote() -> int:
                 "routes": cp["routes"], "stats": stats, "viol": [],
                 "source": f"checkpoint:{cpf.name}", "solver": cp.get("solver", {}),
             })
-
         for cand in candidates:
             if cand["N"] <= infeasible_proofs[name]:
                 logger.error("[%s] CP-SAT 曾证 N=%d 不可行，但存在 N=%d 可行候选（%s）——证明作废，不用于下界",
                              name, infeasible_proofs[name], cand["N"], cand["source"])
                 infeasible_proofs[name] = cand["N"] - 1
-
         candidates.sort(key=lambda c: (c["N"], c["Tmax_s"], c["sum_T_s"]))
         best = candidates[0]
         lb_eff = max(lb["n_lb"], infeasible_proofs[name] + 1)
@@ -745,7 +614,6 @@ def run_promote() -> int:
         archives[name] = arch
         logger.info("[%s] promote 选中 %s：N=%d Tmax=%.4f h（基线 N=%d %.4f h）%s", name, best["source"],
                     best["N"], tmax_s / 3600.0, base["N"], base["Tmax_h"], optimality)
-
     write_result1(archives)
     write_summary(archives)
     viol = []
@@ -757,9 +625,6 @@ def run_promote() -> int:
         logger.warning("注意：%s", n_)
     logger.info("promote 完成：违规 %d 条", len(viol))
     return 1 if viol else 0
-
-
-
 def main() -> int:
     ap = argparse.ArgumentParser(description="问题1 紧档搜索与压缩")
     ap.add_argument("--case", choices=CASES + ["SynthA", "SynthB"], default=None)
@@ -774,7 +639,6 @@ def main() -> int:
     ap.add_argument("--orchestrate", action="store_true")
     ap.add_argument("--promote", action="store_true")
     args = ap.parse_args()
-
     ts = time.strftime("%Y%m%d_%H%M%S")
     suffix = f"{args.case or 'main'}_{args.n or 0}_{args.track or 'cmd'}"
     setup_logging(ts, suffix)
@@ -802,7 +666,5 @@ def main() -> int:
     else:
         run_track_compress(case, dist_km, time_s, args.n, args.budget, args.seed, args.chunk_s)
     return 0
-
-
 if __name__ == "__main__":
     sys.exit(main())

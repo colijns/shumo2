@@ -1,10 +1,7 @@
-
-
 from dataclasses import dataclass
 from hashlib import sha256
 from itertools import combinations, permutations
 from random import Random
-
 from .balance_core import (
     ScoredCandidate,
     deterministic_route_opt,
@@ -17,20 +14,13 @@ from .balance_core import (
 )
 from .domain import CAP_S, ProblemData
 from .metrics import Routes, balanced_key
-
-
 @dataclass(frozen=True, slots=True)
 class StrictSearchResult:
-
-
     initial: ScoredCandidate
     incumbent: ScoredCandidate
     evaluations: int
     improvements: int
-
-
 def derive_seed(base_seed: int, *namespace: object) -> int:
-
     if type(base_seed) is not int:
         raise ValueError("base_seed must be an exact integer")
     components = (base_seed,) + namespace
@@ -38,13 +28,9 @@ def derive_seed(base_seed: int, *namespace: object) -> int:
         raise ValueError("seed namespace components must be exact integers or strings")
     payload = b"q2-seed-v1\x00" + b"".join(_seed_component(part) for part in components)
     return int.from_bytes(sha256(payload).digest(), "big")
-
-
 def _seed_component(value: int | str) -> bytes:
     kind, encoded = (b"i", str(value).encode("ascii")) if type(value) is int else (b"s", value.encode("utf-8"))
     return kind + len(encoded).to_bytes(4, "big") + encoded
-
-
 def run_strict_search(
     problem: ProblemData,
     *,
@@ -52,7 +38,6 @@ def run_strict_search(
     seed: int,
     initial_routes: Routes | None = None,
 ) -> StrictSearchResult:
-
     return _run_search(
         problem,
         key_of=lambda candidate: candidate.strict_key,
@@ -62,8 +47,6 @@ def run_strict_search(
         seed=seed,
         initial_routes=initial_routes,
     )
-
-
 def run_epsilon_search(
     problem: ProblemData,
     *,
@@ -72,11 +55,6 @@ def run_epsilon_search(
     seed: int,
     initial_routes: Routes | None = None,
 ) -> StrictSearchResult:
-
-
-
-
-
     if type(bound_s) is not int or not 1 <= bound_s <= CAP_S:
         raise ValueError("bound_s must be an exact integer in 1..CAP_S")
     return _run_search(
@@ -90,8 +68,6 @@ def run_epsilon_search(
         seed=seed,
         initial_routes=initial_routes,
     )
-
-
 def _run_search(
     problem: ProblemData,
     *,
@@ -102,7 +78,6 @@ def _run_search(
     seed: int,
     initial_routes: Routes | None = None,
 ) -> StrictSearchResult:
-
     if type(evaluation_limit) is not int or evaluation_limit < 0:
         raise ValueError("evaluation_limit must be a nonnegative exact integer")
     if type(seed) is not int:
@@ -138,27 +113,15 @@ def _run_search(
             break
         working = perturbed
     return StrictSearchResult(initial, incumbent, evaluations, improvements)
-
-
 def _normalize_all_routes(problem: ProblemData, routes: Routes) -> Routes:
     return tuple(deterministic_route_opt(route, problem.tasks, problem.time_s) for route in routes)
-
-
 def _normalize_changed_routes(problem: ProblemData, before: Routes, after: Routes) -> Routes:
-
-
-
-
-
-
     return tuple(
         route
         if route == before[index]
         else deterministic_two_opt(route, problem.tasks, problem.time_s)
         for index, route in enumerate(after)
     )
-
-
 def _first_improvement(
     problem: ProblemData,
     incumbent: ScoredCandidate,
@@ -176,8 +139,6 @@ def _first_improvement(
         if improved is not None:
             return _refine_accepted_candidate(problem, incumbent, improved, key_of, bound_s), evaluations
     return None, evaluations
-
-
 def _accept_candidate(
     incumbent: ScoredCandidate,
     problem: ProblemData,
@@ -185,15 +146,12 @@ def _accept_candidate(
     bound_s: int,
     routes: Routes,
 ) -> ScoredCandidate | None:
-
     candidate = score_candidate(problem, routes)
     if candidate is None or candidate.metrics.Tmax_s > bound_s:
         return None
     if key_of(candidate) >= key_of(incumbent):
         return None
     return candidate
-
-
 def _refine_accepted_candidate(
     problem: ProblemData,
     incumbent: ScoredCandidate,
@@ -201,7 +159,6 @@ def _refine_accepted_candidate(
     key_of,
     bound_s: int,
 ) -> ScoredCandidate:
-
     refined_routes = tuple(
         route
         if route == incumbent.routes[index]
@@ -212,8 +169,6 @@ def _refine_accepted_candidate(
     if refined is None or refined.metrics.Tmax_s > bound_s or key_of(refined) >= key_of(accepted):
         return accepted
     return refined
-
-
 def _perturb(
     problem: ProblemData, routes: Routes, randomizer: Random, bound_s: int, remaining: int
 ) -> tuple[ScoredCandidate | None, int]:
@@ -227,8 +182,6 @@ def _perturb(
     if candidate is None or candidate.metrics.Tmax_s > bound_s:
         return None, 1
     return candidate, 1
-
-
 def _ordered_move_candidates(problem: ProblemData, routes: Routes):
     relocate_pairs, swap_pairs = _prioritized_route_pairs(problem, routes)
     neighborhoods = (
@@ -237,8 +190,6 @@ def _ordered_move_candidates(problem: ProblemData, routes: Routes):
         _swap_candidates(problem, routes, swap_pairs),
     )
     yield from _round_robin(neighborhoods)
-
-
 def _single_relocate_candidates(problem: ProblemData, routes: Routes, relocate_pairs):
     for source_route, target_route in relocate_pairs:
         for source_index in range(len(routes[source_route])):
@@ -246,8 +197,6 @@ def _single_relocate_candidates(problem: ProblemData, routes: Routes, relocate_p
                 candidate = relocate(routes, source_route, source_index, target_route, target_index, problem.tasks)
                 if candidate is not None:
                     yield candidate
-
-
 def _block_relocate_candidates(problem: ProblemData, routes: Routes, relocate_pairs):
     for source_route, target_route in relocate_pairs:
         for block_size in (2, 3):
@@ -264,8 +213,6 @@ def _block_relocate_candidates(problem: ProblemData, routes: Routes, relocate_pa
                     )
                     if candidate is not None:
                         yield candidate
-
-
 def _swap_candidates(problem: ProblemData, routes: Routes, swap_pairs):
     for left_route, right_route in swap_pairs:
         for left_index in range(len(routes[left_route])):
@@ -273,10 +220,7 @@ def _swap_candidates(problem: ProblemData, routes: Routes, swap_pairs):
                 candidate = swap(routes, left_route, left_index, right_route, right_index, problem.tasks)
                 if candidate is not None:
                     yield candidate
-
-
 def _round_robin(neighborhoods):
-
     active = [iter(neighborhood) for neighborhood in neighborhoods]
     while active:
         remaining = []
@@ -287,12 +231,9 @@ def _round_robin(neighborhoods):
             except StopIteration:
                 pass
         active = remaining
-
-
 def _random_move_candidate(
     problem: ProblemData, routes: Routes, randomizer: Random, *, max_attempts: int = 100
 ) -> Routes | None:
-
     if len(routes) < 2:
         return None
     for _ in range(max_attempts):
@@ -336,10 +277,7 @@ def _random_move_candidate(
         if candidate is not None:
             return candidate
     return None
-
-
 def _prioritized_route_pairs(problem: ProblemData, routes: Routes):
-
     workloads = tuple(route_work_s(route, problem.time_s) for route in routes)
     relocate_pairs = tuple(
         sorted(

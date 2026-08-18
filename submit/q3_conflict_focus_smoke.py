@@ -1,13 +1,4 @@
-
-
-
-
-
-
-
-
 from __future__ import annotations
-
 import argparse
 import json
 import os
@@ -16,21 +7,15 @@ import tempfile
 import time
 import types
 from pathlib import Path
-
 import numpy as np
 import pandas as pd
-
-
 ROOT = Path(__file__).resolve().parent
 ATTACH_XLSX = ROOT / "attachment" / "附件1.xlsx"
 LEVEL_VISITS = {"I": 3, "II": 2, "III": 1}
 SPEED_KMH = 55.0
 UNIT_KM = 0.1
 SERVICE_S = 300
-
-
 def _load_case_without_solver(name: str) -> dict:
-
     frame = pd.read_excel(ATTACH_XLSX, sheet_name=name)
     points = []
     for row in frame.itertuples(index=False):
@@ -54,8 +39,6 @@ def _load_case_without_solver(name: str) -> dict:
                 }
             )
     return {"name": name, "points": points, "tasks": tasks}
-
-
 def _build_matrices_without_solver(case: dict):
     coords = [(0.0, 0.0)] + [(task["x"], task["y"]) for task in case["tasks"]]
     array = np.asarray(coords) * UNIT_KM
@@ -63,8 +46,6 @@ def _build_matrices_without_solver(case: dict):
     distances = np.sqrt((differences ** 2).sum(-1))
     times = np.ceil(distances / SPEED_KMH * 3600.0).astype(np.int64).tolist()
     return distances, times
-
-
 def _evaluate_without_solver(case: dict, distances, times, routes):
     result = []
     for route in routes:
@@ -83,27 +64,17 @@ def _evaluate_without_solver(case: dict, distances, times, routes):
             }
         )
     return result
-
-
-
-
-
 q1_stub = types.ModuleType("Q1.solve_q1")
 q1_stub.load_case = _load_case_without_solver
 q1_stub.build_matrices = _build_matrices_without_solver
 q1_stub.evaluate = _evaluate_without_solver
 sys.modules["Q1.solve_q1"] = q1_stub
-
 from Q3.domain import Config
 from Q3.io import load_archive, load_problem
 from Q3.safe_path import eval_solution
 from Q3.search import _conflict_focus_tasks, legality, local_search
 from Q3.verify import verify_archive
-
-
 PUBLISHED_Q3 = ROOT / "outputs" / "workbooks" / "q3" / "strict"
-
-
 def metrics(solution):
     m = solution.metrics
     return {
@@ -114,14 +85,10 @@ def metrics(solution):
         "total_wait_s": m.total_wait_s,
         "total_distance_km": round(m.total_distance_km, 6),
     }
-
-
 def _run_search(problem, incumbent, config: Config):
     started = time.monotonic()
     solution = local_search(problem, config, [incumbent])
     return solution, round(time.monotonic() - started, 3)
-
-
 def evaluate(case: str, budget_s: int, top_edges: int) -> dict:
     problem = load_problem(case, repository_root=ROOT)
     archive = load_archive(PUBLISHED_Q3 / f"{case}.json")
@@ -129,7 +96,6 @@ def evaluate(case: str, budget_s: int, top_edges: int) -> dict:
     assert legality(problem, routes), f"{case}: published routes are illegal"
     incumbent = eval_solution(problem, routes)
     assert incumbent is not None, f"{case}: published routes no longer replay"
-
     focused_tasks = _conflict_focus_tasks(problem, incumbent, top_edges)
     common = dict(
         time_budget_s_per_case=budget_s,
@@ -143,9 +109,6 @@ def evaluate(case: str, budget_s: int, top_edges: int) -> dict:
         conflict_focus=True,
         conflict_full_fallback=False,
     )
-
-
-
     previous_cwd = Path.cwd()
     with tempfile.TemporaryDirectory(prefix="q3-conflict-smoke-") as temp_dir:
         os.chdir(temp_dir)
@@ -158,7 +121,6 @@ def evaluate(case: str, budget_s: int, top_edges: int) -> dict:
             )
         finally:
             os.chdir(previous_cwd)
-
     original_violations = verify_archive(problem, original.freeze())
     focused_violations = verify_archive(problem, focused.freeze())
     return {
@@ -190,8 +152,6 @@ def evaluate(case: str, budget_s: int, top_edges: int) -> dict:
             else "worse"
         ),
     }
-
-
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--cases", nargs="+", default=["Case2", "Case3"])
@@ -203,7 +163,5 @@ def main() -> None:
         for case in args.cases
     ]
     print(json.dumps(results, ensure_ascii=False, indent=2))
-
-
 if __name__ == "__main__":
     main()

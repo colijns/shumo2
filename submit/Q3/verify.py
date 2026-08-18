@@ -1,15 +1,6 @@
-
-
-
-
-
-
-
 import math
 from dataclasses import dataclass
-
 import numpy as np
-
 from .domain import EPS_ARC_KM, EPS_VER_KM, SERVICE_S, SPEED_KMH, SegmentRecord, Task
 from .geometry import (
     TAU,
@@ -18,33 +9,24 @@ from .geometry import (
     visibility_path,
 )
 from .io import load_problem
-
 KM_PER_S = SPEED_KMH / 3600.0
 STRAIGHT_SAMPLES = 50
 ARC_SAMPLES = 100
-
-
 @dataclass(frozen=True, slots=True)
 class Sample:
     x_km: float
     y_km: float
     t_s: float
-
-
 @dataclass(frozen=True, slots=True)
 class Replay:
     samples: tuple[Sample, ...]
     length_km: float
     flight_s: int
-
-
 def _node_position(problem, node_id: int) -> tuple[float, float]:
     if node_id == 0:
         return (0.0, 0.0)
     task: Task = problem.tasks[node_id - 1]
     return (task.x_km, task.y_km)
-
-
 def _straight(start: np.ndarray, end: np.ndarray, t0: float, t1: float) -> list[Sample]:
     return [
         Sample(
@@ -54,13 +36,8 @@ def _straight(start: np.ndarray, end: np.ndarray, t0: float, t1: float) -> list[
         )
         for frac in np.linspace(0.0, 1.0, STRAIGHT_SAMPLES)
     ]
-
-
 def _arc(center, radius: float, theta_a: float, theta_b: float, direction: int,
          t0: float, t1: float) -> list[Sample]:
-
-
-
     if direction > 0:
         sweep = (theta_b - theta_a) % TAU
     else:
@@ -76,10 +53,7 @@ def _arc(center, radius: float, theta_a: float, theta_b: float, direction: int,
             )
         )
     return samples
-
-
 def _flight_duration(points, arc_lengths: list[float]) -> int:
-
     total = 0
     for index in range(len(points) - 1):
         length = arc_lengths[index] if arc_lengths[index] is not None else float(
@@ -87,25 +61,16 @@ def _flight_duration(points, arc_lengths: list[float]) -> int:
         )
         total += int(math.ceil(length / KM_PER_S))
     return total
-
-
 def replay_segment(problem, seg: SegmentRecord) -> Replay | None:
-
-
     p = np.asarray(_node_position(problem, seg.from_id), dtype=float)
     q = np.asarray(_node_position(problem, seg.to_id), dtype=float)
-
-
-
     start_t = float(seg.depart_s)
     samples: list[Sample] = []
-
     if seg.path_type in ("direct", "wait_direct"):
         length = float(np.linalg.norm(q - p))
         duration = int(math.ceil(length / KM_PER_S))
         samples = _straight(p, q, start_t, start_t + duration)
         return Replay(tuple(samples), length, duration)
-
     if seg.path_type == "detour":
         if len(seg.affected_zones) != 1:
             return None
@@ -132,7 +97,6 @@ def replay_segment(problem, seg: SegmentRecord) -> Replay | None:
                             start_t + times[1], start_t + times[2]))
         samples.extend(_straight(points[2], points[3], start_t + times[2], start_t + times[3]))
         return Replay(tuple(samples), sum(seg_len), duration)
-
     if seg.path_type == "visibility":
         obstacles = [
             ((zone.cx_km, zone.cy_km), zone.safe_radius())
@@ -179,10 +143,7 @@ def replay_segment(problem, seg: SegmentRecord) -> Replay | None:
                 samples.extend(_arc(leg.center, leg.radius_km, theta_a, theta_b, leg.direction,
                                     start_t + times[index], start_t + times[index + 1]))
         return Replay(tuple(samples), length, duration)
-
     return None
-
-
 def _zone_violations(problem, samples, where: str) -> list[str]:
     violations = []
     for zone in problem.zones:
@@ -196,27 +157,19 @@ def _zone_violations(problem, samples, where: str) -> list[str]:
                     )
                     break
     return violations
-
-
 def verify_archive(problem, archive: dict) -> list[str]:
-
     violations: list[str] = []
     task_routes = archive.get("task_routes")
     schedules = archive.get("schedules")
-
-
     served = [task_id for route in (task_routes or []) for task_id in route]
     if sorted(served) != list(range(1, len(problem.tasks) + 1)):
         violations.append(
             f"1: served set mismatch (expected 1..{len(problem.tasks)}, got {sorted(served)})"
         )
-
     per_route = []
     for index, route in enumerate(task_routes or []):
-
         if not route:
             violations.append(f"2: uav {index}: empty route")
-
         prev_point = None
         for task_id in route:
             point_id = problem.tasks[task_id - 1].point_id
@@ -224,9 +177,7 @@ def verify_archive(problem, archive: dict) -> list[str]:
                 violations.append(f"3: uav {index}: adjacent same point {point_id}")
             prev_point = point_id
         per_route.append(route)
-
     for schedule in (schedules or []):
-
         prev_arrive: int | None = None
         for segment in schedule.get("segments", []):
             record = SegmentRecord(
@@ -242,9 +193,6 @@ def verify_archive(problem, archive: dict) -> list[str]:
                 )
                 prev_arrive = segment["arrive_s"]
                 continue
-
-
-
             if replay.flight_s != segment["arrive_s"] - segment["depart_s"]:
                 violations.append(
                     f"6: uav {schedule['uav_id']}: flight time mismatch "
@@ -260,7 +208,6 @@ def verify_archive(problem, archive: dict) -> list[str]:
                 _zone_violations(problem, replay.samples,
                                  f"4: uav {schedule['uav_id']} {segment['from_id']}->{segment['to_id']}")
             )
-
             if segment["to_id"] != 0:
                 task = problem.tasks[segment["to_id"] - 1]
                 for zone in problem.zones:
@@ -271,7 +218,6 @@ def verify_archive(problem, archive: dict) -> list[str]:
                             f"5: uav {schedule['uav_id']}: service at task {segment['to_id']} "
                             f"inside active {zone.zone_id} [{segment['arrive_s']}, {segment['arrive_s'] + SERVICE_S}]"
                         )
-
             if segment["wait_s"] > 0:
                 wx, wy = _node_position(problem, segment["from_id"])
                 for zone in problem.zones:
@@ -287,8 +233,6 @@ def verify_archive(problem, archive: dict) -> list[str]:
         last_segment = schedule["segments"][-1] if schedule["segments"] else None
         if last_segment is None or last_segment["to_id"] != 0:
             violations.append(f"2: uav {schedule['uav_id']}: route does not return to base")
-
-
     for schedule in (schedules or []):
         segments = schedule.get("segments", [])
         if not segments or segments[0]["depart_s"] - segments[0]["wait_s"] != 0:
@@ -304,7 +248,6 @@ def verify_archive(problem, archive: dict) -> list[str]:
             violations.append(
                 f"6: uav {schedule['uav_id']}: S_k {schedule['S_k_s']} != final arrival {segments[-1]['arrive_s']}"
             )
-
         flight = sum(
             seg["arrive_s"] - seg["depart_s"] for seg in segments
         )
@@ -317,8 +260,6 @@ def verify_archive(problem, archive: dict) -> list[str]:
             )
         if abs(distance - schedule.get("distance_km", 0.0)) > 1e-6:
             violations.append(f"7: uav {schedule['uav_id']}: distance mismatch")
-
-
     if schedules:
         s_ks = [schedule["S_k_s"] for schedule in schedules]
         s_max, s_min = max(s_ks), min(s_ks)
@@ -339,8 +280,6 @@ def verify_archive(problem, archive: dict) -> list[str]:
         computed_distance = round(sum(schedule["distance_km"] for schedule in schedules), 6)
         if abs(metrics.get("total_distance_km", -1.0) - computed_distance) > 1e-6:
             violations.append(f"7: metrics total_distance mismatch")
-
-
     if task_routes:
         schedule_routes = [
             [seg["to_id"] for seg in schedule.get("segments", []) if seg["to_id"] != 0]
@@ -348,21 +287,14 @@ def verify_archive(problem, archive: dict) -> list[str]:
         ]
         if [list(route) for route in task_routes] != schedule_routes:
             violations.append("8: task_routes disagree with schedule task_route fields")
-
-
     cap = archive.get("config", {}).get("nine_hour_cap_s")
     if cap:
         for schedule in (schedules or []):
             if schedule["S_k_s"] > cap:
                 violations.append(f"9: uav {schedule['uav_id']} S_k {schedule['S_k_s']} > {cap}")
-
     return violations
-
-
 def _task_routes_from_csv(problem, csv_path) -> list[list[int]]:
-
     import pandas as pd
-
     frame = pd.read_csv(csv_path, encoding="utf-8")
     routes: dict[int, list[int]] = {}
     for row in frame.itertuples(index=False):
@@ -375,20 +307,8 @@ def _task_routes_from_csv(problem, csv_path) -> list[list[int]]:
     if sorted(task_id for route in ordered for task_id in route) != list(range(1, len(problem.tasks) + 1)):
         raise ValueError(f"timetable {csv_path} does not cover tasks 1..{len(problem.tasks)}")
     return ordered
-
-
 def _point_routes_from_workbook(problem, workbook_path, case: str) -> list[list[int]]:
-
-
-
-
-
-
-
-
-
     import pandas as pd
-
     max_visits: dict[int, int] = {}
     for task in problem.tasks:
         max_visits[task.point_id] = max_visits.get(task.point_id, 0) + 1
@@ -406,20 +326,10 @@ def _point_routes_from_workbook(problem, workbook_path, case: str) -> list[list[
                 raise ValueError(f"workbook {case}: too many visits of point {point_id}")
         routes.append(points)
     return routes
-
-
 def verify_all(cases, config, repository_root=None) -> list[str]:
-
-
-
-
-
-
     import json as _json
     from pathlib import Path as _Path
-
     from .io import OUT_RELATIVE, Q3_OUT_RELATIVE, archive_sha256, load_archive
-
     root = _Path(repository_root).resolve() if repository_root else _Path(__file__).resolve().parents[1]
     report_dir = root / Q3_OUT_RELATIVE / "reports"
     manifest_path = report_dir / "run_manifest.json"
@@ -442,7 +352,6 @@ def verify_all(cases, config, repository_root=None) -> list[str]:
             case_violations.extend(verify_archive(problem, archive))
             if entry.get("archive_sha256") != archive_sha256(archive_path):
                 case_violations.append(f"8: archive sha256 mismatch")
-
             try:
                 csv_routes = _task_routes_from_csv(problem, root / entry["timetable"])
                 if [list(route) for route in archive.get("task_routes", [])] != csv_routes:
@@ -466,7 +375,6 @@ def verify_all(cases, config, repository_root=None) -> list[str]:
                 case_violations.append("8: result3.xlsx missing")
             violations.extend(f"{case}: {item}" for item in case_violations)
             report["cases"][case] = {"verified": not case_violations, "violations": case_violations}
-
     report_dir.mkdir(parents=True, exist_ok=True)
     (report_dir / "verify_report.json").write_text(
         _json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2), encoding="utf-8"

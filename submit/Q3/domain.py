@@ -1,76 +1,44 @@
-
-
 from dataclasses import dataclass, field
 from typing import Any, Mapping
-
 from Q2.domain import LEVEL_VISITS, SERVICE_S, SPEED_KMH, UNIT_KM
-
 SAFETY_MARGIN_KM = 0.01
 EPS_ARC_KM = 1e-6
 EPS_VER_KM = 1e-9
 START_T_S = 0
 SOLUTION_SCHEMA = "q3-solution-v1"
-
 FLEET_SIZE_BY_CASE = {"Case1": 4, "Case2": 2, "Case3": 5, "Case4": 4}
-
 START_CLOCK_S = 8 * 3600
-
-
 def hhmm_to_s(text: str) -> int:
-
-
-
-
     hours, minutes = (int(part) for part in str(text).split(":"))
     return hours * 3600 + minutes * 60
-
-
 @dataclass(frozen=True, slots=True)
 class NoFlyZone:
-
-
     zone_id: str
     cx_km: float
     cy_km: float
     radius_km: float
     start_s: int
     end_s: int
-
     def active(self, t_s: int) -> bool:
         return self.start_s <= t_s <= self.end_s
-
     def safe_radius(self) -> float:
         return self.radius_km + SAFETY_MARGIN_KM
-
-
 @dataclass(frozen=True, slots=True)
 class Base:
-
-
     task_id: int = 0
     point_id: int = 0
     x_km: float = 0.0
     y_km: float = 0.0
-
-
 @dataclass(frozen=True, slots=True)
 class Task:
-
-
     task_id: int
     point_id: int
     x_km: float
     y_km: float
     level: str
-
-
 Node = Task | Base
-
-
 @dataclass(frozen=True, slots=True)
 class ProblemData:
-
-
     case: str
     tasks: tuple[Task, ...]
     zones: tuple[NoFlyZone, ...]
@@ -79,12 +47,8 @@ class ProblemData:
     input_sha256: str
     problem_contract_sha256: str
     parent_archive_sha256: str
-
-
 @dataclass(frozen=True, slots=True)
 class Config:
-
-
     fleet_size: dict[str, int] = field(default_factory=lambda: dict(FLEET_SIZE_BY_CASE))
     eta_km: float = SAFETY_MARGIN_KM
     seed: int = 42
@@ -96,15 +60,9 @@ class Config:
     nine_hour_cap_s: int | None = None
     lex_first_is_N: bool = False
     allow_empty_routes: bool = False
-
-
 DEFAULT_CONFIG = Config()
-
-
 @dataclass(frozen=True, slots=True)
 class SegmentRecord:
-
-
     from_id: int
     to_id: int
     path_type: str
@@ -113,12 +71,8 @@ class SegmentRecord:
     wait_s: int
     distance_km: float
     affected_zones: tuple[str, ...]
-
-
 @dataclass(frozen=True, slots=True)
 class UAVSchedule:
-
-
     uav_id: int
     task_route: tuple[int, ...]
     segments: tuple[SegmentRecord, ...]
@@ -127,19 +81,14 @@ class UAVSchedule:
     flight_s: int
     wait_s: int
     distance_km: float
-
-
 @dataclass(frozen=True, slots=True)
 class SolutionMetrics:
-
-
     S_max_s: int
     S_min_s: int
     delta_s: int
     sum_T_s: int
     total_wait_s: int
     total_distance_km: float
-
     def lex_key(self) -> tuple:
         return (
             self.S_max_s,
@@ -148,16 +97,11 @@ class SolutionMetrics:
             self.total_wait_s,
             round(self.total_distance_km, 6),
         )
-
-
 @dataclass(frozen=True, slots=True)
 class Solution:
-
-
     problem: ProblemData
     schedules: tuple[UAVSchedule, ...]
     metrics: SolutionMetrics
-
     def freeze(self) -> dict[str, Any]:
         return {
             "schema_version": SOLUTION_SCHEMA,
@@ -202,18 +146,12 @@ class Solution:
                 "total_distance_km": self.metrics.total_distance_km,
             },
         }
-
-
 def freeze_json(value: Any) -> Any:
-
     if isinstance(value, dict):
         return {key: freeze_json(item) for key, item in value.items()}
     if isinstance(value, list):
         return tuple(freeze_json(item) for item in value)
     return value
-
-
-
 __all__ = [
     "DEFAULT_CONFIG",
     "START_CLOCK_S",

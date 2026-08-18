@@ -1,17 +1,6 @@
-
-
-
-
-
-
-
-
 import math
-
 import numpy as np
-
 from dataclasses import replace
-
 from .domain import (
     EPS_ARC_KM,
     Base,
@@ -34,27 +23,16 @@ from .geometry import (
     segment_circle_interval,
     visibility_path,
 )
-
 KM_PER_S = SPEED_KMH / 3600.0
-
-
 def _duration(distance_km: float) -> int:
     return int(math.ceil(distance_km / KM_PER_S))
-
-
 def _distance(a, b) -> float:
     return float(np.linalg.norm(np.asarray(a, dtype=float) - np.asarray(b, dtype=float)))
-
-
 def _path_duration(path: VisibilityPath) -> int:
-
     total = 0
     for i in range(len(path.points) - 1):
         total += _duration(_leg_length(path, i))
     return total
-
-
-
 def _leg_length(path: VisibilityPath, index: int) -> float:
     start, end = path.points[index], path.points[index + 1]
     for leg in path.arc_legs:
@@ -63,10 +41,7 @@ def _leg_length(path: VisibilityPath, index: int) -> float:
                        - math.atan2(start[1] - leg.center[1], start[0] - leg.center[0])) % TAU
             return leg.radius_km * min(forward, TAU - forward)
     return _distance(start, end)
-
-
 def _arc_bounds(path: VisibilityPath, index: int) -> tuple:
-
     for leg in path.arc_legs:
         if leg.start == index:
             start, end = path.points[index], path.points[index + 1]
@@ -77,15 +52,7 @@ def _arc_bounds(path: VisibilityPath, index: int) -> tuple:
             direction = 1 if forward <= TAU - forward else -1
             return theta_a, theta_b, direction, leg.radius_km
     return None
-
-
 def spatiotemporal_safe(path: VisibilityPath, depart_s: float, zones) -> bool:
-
-
-
-
-
-
     t0 = float(depart_s)
     for i in range(len(path.points) - 1):
         start, end = path.points[i], path.points[i + 1]
@@ -101,8 +68,6 @@ def spatiotemporal_safe(path: VisibilityPath, depart_s: float, zones) -> bool:
                 )
                 if interval is None:
                     continue
-
-
                 if interval[1] - interval[0] <= 1e-6:
                     continue
                 ta = t0 + interval[0] * duration
@@ -121,15 +86,11 @@ def spatiotemporal_safe(path: VisibilityPath, depart_s: float, zones) -> bool:
                     return False
         t0 = t1
     return True
-
-
 def _vec_center(path: VisibilityPath, index: int):
     for leg in path.arc_legs:
         if leg.start == index:
             return leg.center
     raise KeyError(index)
-
-
 def _arc_angle(path: VisibilityPath, index: int) -> float:
     start, end = path.points[index], path.points[index + 1]
     for leg in path.arc_legs:
@@ -139,10 +100,7 @@ def _arc_angle(path: VisibilityPath, index: int) -> float:
             forward = (theta_b - theta_a) % TAU
             return min(forward, TAU - forward)
     raise KeyError(index)
-
-
 def _arc_leg_conflicts(intervals, theta_start, direction, arc_angle, t0, duration, zone) -> bool:
-
     sweep = direction * arc_angle
     arc_lo = min(theta_start, theta_start + sweep)
     arc_hi = max(theta_start, theta_start + sweep)
@@ -159,34 +117,21 @@ def _arc_leg_conflicts(intervals, theta_start, direction, arc_angle, t0, duratio
             if tb >= zone.start_s and ta <= zone.end_s:
                 return True
     return False
-
-
 def wait_safe(problem: ProblemData, position, t0_s: float, t1_s: float) -> bool:
-
-
     for zone in problem.zones:
         if t1_s < zone.start_s or t0_s > zone.end_s:
             continue
         if _distance(position, (zone.cx_km, zone.cy_km)) <= zone.safe_radius():
             return False
     return True
-
-
 def event_delays(problem: ProblemData, zones, now_s: int) -> list[int]:
-
-
-
     candidates = {0}
     for zone in zones:
         if zone.end_s >= now_s:
             candidates.add(int(math.ceil(zone.end_s - now_s + 1)))
             candidates.add(int(math.ceil(zone.end_s - now_s + 1 + SERVICE_S)))
     return sorted(w for w in candidates if w >= 0)
-
-
 def _service_conflicts(problem: ProblemData, u: Task, arrive_s: int) -> tuple[NoFlyZone, ...]:
-
-
     conflicts = []
     for zone in problem.zones:
         if arrive_s > zone.end_s or arrive_s + SERVICE_S < zone.start_s:
@@ -194,14 +139,10 @@ def _service_conflicts(problem: ProblemData, u: Task, arrive_s: int) -> tuple[No
         if _distance((u.x_km, u.y_km), (zone.cx_km, zone.cy_km)) <= zone.safe_radius():
             conflicts.append(zone)
     return tuple(conflicts)
-
-
 def _direct_path(p, q) -> VisibilityPath:
     return VisibilityPath(
         (np.asarray(p, dtype=float), np.asarray(q, dtype=float)), (), _distance(p, q)
     )
-
-
 def _detour_path(p, q, center, radius, points, arc_angle, direction) -> VisibilityPath:
     start, end = points[1], points[2]
     theta_a = math.atan2(start[1] - center[1], start[0] - center[0])
@@ -213,15 +154,7 @@ def _detour_path(p, q, center, radius, points, arc_angle, direction) -> Visibili
         tangent_len + radius * arc_angle,
         (ArcLeg(1, 2, np.asarray(center, dtype=float), radius, direction),),
     )
-
-
 def earliest_safe_travel(problem: ProblemData, u, v, depart_s: int) -> SegmentRecord | None:
-
-
-
-
-
-
     p = (u.x_km, u.y_km)
     q = (v.x_km, v.y_km)
     zones = problem.zones
@@ -232,10 +165,7 @@ def earliest_safe_travel(problem: ProblemData, u, v, depart_s: int) -> SegmentRe
             u.task_id, v.task_id, "direct", depart_s,
             depart_s + direct_duration, 0, direct.length_km, (),
         )
-
     candidates: list[SegmentRecord] = []
-
-
     for zone in zones:
         if zone.end_s < depart_s or zone.start_s > depart_s + direct_duration:
             continue
@@ -263,8 +193,6 @@ def earliest_safe_travel(problem: ProblemData, u, v, depart_s: int) -> SegmentRe
                         t0 + _path_duration(leg), w, leg.length_km, (),
                     )
                 )
-
-
     for zone in zones:
         if zone.end_s < depart_s or zone.start_s > depart_s + direct_duration:
             continue
@@ -286,8 +214,6 @@ def earliest_safe_travel(problem: ProblemData, u, v, depart_s: int) -> SegmentRe
                     depart_s + _path_duration(leg), 0, leg.length_km, (zone.zone_id,),
                 )
             )
-
-
     bound = direct_duration * 4 + 3600
     obstacles = [
         (zone, zone.cx_km, zone.cy_km, zone.safe_radius())
@@ -306,23 +232,15 @@ def earliest_safe_travel(problem: ProblemData, u, v, depart_s: int) -> SegmentRe
                     tuple(zone.zone_id for zone, _, _, _ in obstacles),
                 )
             )
-
     if not candidates:
         return None
     return min(
         candidates,
         key=lambda record: (record.arrive_s, record.wait_s, record.distance_km),
     )
-
-
 def earliest_safe_service_completion(
     problem: ProblemData, prev, u: Task, depart_s: int
 ) -> tuple[SegmentRecord, int, int] | None:
-
-
-
-
-
     travel = earliest_safe_travel(problem, prev, u, depart_s)
     if travel is None:
         return None
@@ -330,7 +248,6 @@ def earliest_safe_service_completion(
     conflicts = _service_conflicts(problem, u, arrive)
     if not conflicts:
         return travel, arrive, arrive + SERVICE_S
-
     p = (prev.x_km, prev.y_km)
     q = (u.x_km, u.y_km)
     direct_duration = _duration(_distance(p, q))
@@ -343,7 +260,6 @@ def earliest_safe_service_completion(
             continue
         t_entry = depart_s + interval[0] * direct_duration
         candidates.add(int(math.ceil(zone.end_s - t_entry + 1)))
-
     for wait in sorted(w for w in candidates if w >= 0):
         if wait == 0:
             continue
@@ -358,10 +274,7 @@ def earliest_safe_service_completion(
             merged = replace(travel_w, wait_s=travel_w.wait_s + wait)
             return merged, arrive_w, arrive_w + SERVICE_S
     return None
-
-
 def eval_route(problem: ProblemData, route: tuple[int, ...], uav_id: int) -> UAVSchedule | None:
-
     prev: Task | Base = Base()
     depart = 0
     segments: list[SegmentRecord] = []
@@ -393,10 +306,7 @@ def eval_route(problem: ProblemData, route: tuple[int, ...], uav_id: int) -> UAV
         uav_id, route, tuple(segments), tuple(service_intervals),
         ret.arrive_s, flight, wait, distance,
     )
-
-
 def eval_solution(problem: ProblemData, task_routes: list[tuple[int, ...]]) -> Solution | None:
-
     if len(task_routes) != problem.fleet_size:
         return None
     schedules = []
@@ -419,11 +329,7 @@ def eval_solution(problem: ProblemData, task_routes: list[tuple[int, ...]]) -> S
             round(sum(schedule.distance_km for schedule in schedules), 6),
         ),
     )
-
-
 def base_safety_assert(problem: ProblemData) -> None:
-
-
     for zone in problem.zones:
         if zone.start_s <= 0 <= zone.end_s and _distance(
             (0.0, 0.0), (zone.cx_km, zone.cy_km)

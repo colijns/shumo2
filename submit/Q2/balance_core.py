@@ -1,31 +1,18 @@
-
-
 from dataclasses import dataclass
 from typing import Iterable
-
 from .domain import CAP_S, SERVICE_S, ProblemData, SolutionMetrics, Task
 from .metrics import ObjectiveKey, Routes, normalize_routes, replay_metrics, strict_key
-
-
 def _point_lookup(tasks: tuple[Task, ...]) -> dict[int, int]:
     lookup = {task.task_id: task.point_id for task in tasks}
     if set(lookup) != set(range(1, len(tasks) + 1)):
         raise ValueError("task IDs must be continuous from 1 through M")
     return lookup
-
-
-
 @dataclass(frozen=True, slots=True)
 class ScoredCandidate:
-
-
     routes: Routes
     metrics: SolutionMetrics
     strict_key: ObjectiveKey
-
-
 def score_candidate(problem: ProblemData, routes: Iterable[Iterable[int]]) -> ScoredCandidate | None:
-
     try:
         canonical = normalize_routes(routes)
     except ValueError:
@@ -39,34 +26,23 @@ def score_candidate(problem: ProblemData, routes: Iterable[Iterable[int]]) -> Sc
     if metrics.Tmax_s > CAP_S:
         return None
     return ScoredCandidate(canonical, metrics, strict_key(metrics.Tmax_s, metrics.delta_s, metrics.sum_T_s, canonical))
-
-
 def accept_strict_improvement(
     incumbent: ScoredCandidate, problem: ProblemData, routes: Iterable[Iterable[int]]
 ) -> ScoredCandidate | None:
-
     candidate = score_candidate(problem, routes)
     if candidate is None or candidate.strict_key >= incumbent.strict_key:
         return None
     return candidate
-
-
 def route_work_s(route: Iterable[int], time_s: tuple[tuple[int, ...], ...]) -> int:
-
     canonical = tuple(route)
     path = (0,) + canonical + (0,)
     return sum(time_s[left][right] for left, right in zip(path, path[1:])) + SERVICE_S * len(canonical)
-
-
 def _route_is_legal(route: tuple[int, ...], point_by_task: dict[int, int]) -> bool:
     if not route or any(task_id not in point_by_task for task_id in route):
         return False
     points = tuple(point_by_task[task_id] for task_id in route)
     return not any(left == right for left, right in zip(points, points[1:]))
-
-
 def is_legal_routes(routes: Iterable[Iterable[int]], tasks: tuple[Task, ...]) -> bool:
-
     try:
         canonical = normalize_routes(routes)
     except ValueError:
@@ -80,12 +56,8 @@ def is_legal_routes(routes: Iterable[Iterable[int]], tasks: tuple[Task, ...]) ->
         and set(task_ids) == set(expected)
         and all(_route_is_legal(route, point_by_task) for route in canonical)
     )
-
-
 def _replace_routes(routes: Routes, replacements: dict[int, tuple[int, ...]]) -> Routes:
     return tuple(replacements.get(index, route) for index, route in enumerate(routes))
-
-
 def relocate(
     routes: Iterable[Iterable[int]],
     source_route: int,
@@ -94,7 +66,6 @@ def relocate(
     target_index: int,
     tasks: tuple[Task, ...],
 ) -> Routes | None:
-
     try:
         canonical = normalize_routes(routes)
     except ValueError:
@@ -111,8 +82,6 @@ def relocate(
     new_target = target[:target_index] + (task_id,) + target[target_index:]
     candidate = _replace_routes(canonical, {source_route: new_source, target_route: new_target})
     return candidate if is_legal_routes(candidate, tasks) else None
-
-
 def relocate_block(
     routes: Iterable[Iterable[int]],
     source_route: int,
@@ -122,7 +91,6 @@ def relocate_block(
     target_index: int,
     tasks: tuple[Task, ...],
 ) -> Routes | None:
-
     try:
         canonical = normalize_routes(routes)
     except ValueError:
@@ -144,8 +112,6 @@ def relocate_block(
     new_target = target[:target_index] + block + target[target_index:]
     candidate = _replace_routes(canonical, {source_route: new_source, target_route: new_target})
     return candidate if is_legal_routes(candidate, tasks) else None
-
-
 def swap(
     routes: Iterable[Iterable[int]],
     left_route: int,
@@ -154,7 +120,6 @@ def swap(
     right_index: int,
     tasks: tuple[Task, ...],
 ) -> Routes | None:
-
     try:
         canonical = normalize_routes(routes)
     except ValueError:
@@ -168,22 +133,15 @@ def swap(
     new_right = right[:right_index] + (left[left_index],) + right[right_index + 1 :]
     candidate = _replace_routes(canonical, {left_route: new_left, right_route: new_right})
     return candidate if is_legal_routes(candidate, tasks) else None
-
-
 def _valid_route_index(routes: Routes, *indices: int) -> bool:
     return all(type(index) is int and 0 <= index < len(routes) for index in indices)
-
-
 def _valid_position(index: int, size: int, *, allow_end: bool = False) -> bool:
     if type(index) is not int:
         return False
     return 0 <= index <= size if allow_end else 0 <= index < size
-
-
 def deterministic_two_opt(
     route: Iterable[int], tasks: tuple[Task, ...], time_s: tuple[tuple[int, ...], ...]
 ) -> tuple[int, ...]:
-
     current = tuple(route)
     point_by_task = _point_lookup(tasks)
     while True:
@@ -191,8 +149,6 @@ def deterministic_two_opt(
         if improved is None:
             return current
         current = improved
-
-
 def deterministic_or_opt(
     route: Iterable[int],
     tasks: tuple[Task, ...],
@@ -200,7 +156,6 @@ def deterministic_or_opt(
     *,
     max_block_size: int = 3,
 ) -> tuple[int, ...]:
-
     if type(max_block_size) is not int or max_block_size < 1:
         raise ValueError("max_block_size must be a positive exact integer")
     current = tuple(route)
@@ -210,20 +165,15 @@ def deterministic_or_opt(
         if improved is None:
             return current
         current = improved
-
-
 def deterministic_route_opt(
     route: Iterable[int], tasks: tuple[Task, ...], time_s: tuple[tuple[int, ...], ...]
 ) -> tuple[int, ...]:
-
     current = tuple(route)
     while True:
         improved = deterministic_or_opt(deterministic_two_opt(current, tasks, time_s), tasks, time_s)
         if improved == current:
             return current
         current = improved
-
-
 def _first_two_opt_improvement(
     route: tuple[int, ...], point_by_task: dict[int, int], time_s: tuple[tuple[int, ...], ...]
 ) -> tuple[int, ...] | None:
@@ -234,8 +184,6 @@ def _first_two_opt_improvement(
             if _route_is_legal(candidate, point_by_task) and route_work_s(candidate, time_s) < baseline:
                 return candidate
     return None
-
-
 def _first_or_opt_improvement(
     route: tuple[int, ...],
     point_by_task: dict[int, int],
@@ -254,8 +202,5 @@ def _first_or_opt_improvement(
                 if _route_is_legal(candidate, point_by_task) and route_work_s(candidate, time_s) < baseline:
                     return candidate
     return None
-
-
 def routes_within_capacity(routes: Iterable[Iterable[int]], time_s: tuple[tuple[int, ...], ...]) -> bool:
-
     return all(route_work_s(route, time_s) <= CAP_S for route in normalize_routes(routes))

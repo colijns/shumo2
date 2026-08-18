@@ -1,10 +1,7 @@
-
-
 import argparse
 import json
 from pathlib import Path
 from typing import Sequence
-
 from .epsilon_state import EPSILON_VALUES, create_dual_track_state, propagate_candidate
 from .io import (
     atomic_write_json,
@@ -16,11 +13,8 @@ from .io import (
 from .metrics import epsilon_bound
 from .q1_adapter import FLEET_SIZE_BY_CASE, load_problem
 from .search import run_epsilon_search, run_strict_search
-
 DEFAULT_SEED = 42
 DEFAULT_EVALUATION_LIMIT = 2_000
-
-
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run or verify Q2 strict routing results")
     parser.add_argument("--case", choices=tuple(FLEET_SIZE_BY_CASE))
@@ -35,8 +29,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--smoke", action="store_true")
     parser.add_argument("--verify", action="store_true")
     return parser
-
-
 def main(arguments: Sequence[str] | None = None) -> int:
     options = build_parser().parse_args(arguments)
     if options.case:
@@ -46,8 +38,6 @@ def main(arguments: Sequence[str] | None = None) -> int:
     if options.verify:
         return _verify(options)
     return _run(options)
-
-
 def _run(options: argparse.Namespace) -> int:
     root = _repository_root(options.repository_root)
     output_root = options.output_root or root / "outputs" / "workbooks"
@@ -120,8 +110,6 @@ def _run(options: argparse.Namespace) -> int:
     write_result_workbook(output_root / "result2.xlsx", solutions)
     atomic_write_json(output_root / "q2" / "reports" / "run_manifest.json", _manifest(archives, epsilon_archives, pareto_archives))
     return 0
-
-
 def _verify(options: argparse.Namespace) -> int:
     root = _repository_root(options.repository_root)
     output_root = options.output_root or root / "outputs" / "workbooks"
@@ -159,8 +147,6 @@ def _verify(options: argparse.Namespace) -> int:
     except (OSError, ValueError, json.JSONDecodeError):
         return 1
     return 0
-
-
 def _verify_epsilon_outputs(manifest: dict, solutions: dict, epsilon_root: Path) -> bool:
     expected_epsilons = {str(value) for value in EPSILON_VALUES}
     manifest_epsilons = manifest.get("epsilon")
@@ -183,8 +169,6 @@ def _verify_epsilon_outputs(manifest: dict, solutions: dict, epsilon_root: Path)
             if archive.get("epsilon") != str(epsilon) or archive.get("track") != "epsilon_formal":
                 return False
     return True
-
-
 def _verify_pareto_outputs(manifest: dict, solutions: dict, pareto_root: Path) -> bool:
     observed = manifest.get("pareto_observed")
     if not isinstance(observed, dict) or set(observed) != set(FLEET_SIZE_BY_CASE):
@@ -203,8 +187,6 @@ def _verify_pareto_outputs(manifest: dict, solutions: dict, pareto_root: Path) -
         if any(archives[index].metrics.Tmax_s > 32400 for index in range(len(archives))):
             return False
     return True
-
-
 def _manifest(
     archives: dict[str, dict], epsilon_archives: dict, pareto_archives: dict
 ) -> dict:
@@ -217,15 +199,9 @@ def _manifest(
         "epsilon": {str(epsilon): case_archives for epsilon, case_archives in epsilon_archives.items()},
         "pareto_observed": pareto_archives,
     }
-
-
 def _epsilon_dir(epsilon) -> str:
     return str(epsilon).replace(".", "_")
-
-
 def _repository_root(explicit: Path | None) -> Path:
     return explicit.resolve() if explicit else Path(__file__).resolve().parents[1]
-
-
 if __name__ == "__main__":
     raise SystemExit(main())

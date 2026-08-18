@@ -1,69 +1,23 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import json
 import sys
 from pathlib import Path
-
 import matplotlib
-
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-
-
 plt.style.use("seaborn-v0_8-whitegrid")
 plt.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei", "Noto Sans CJK SC"]
 plt.rcParams["axes.unicode_minus"] = False
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CASES = ["Case1", "Case2", "Case3", "Case4"]
 FIG_DIR = REPO_ROOT / "plots" / "figs"
 ARCHIVE = REPO_ROOT / "outputs" / "workbooks"
-
 Q2_ARCHIVE = REPO_ROOT / "enhanced_run_20260817_e2000" / "q2" / "strict"
-
 Q_COLORS = {"问题1": "#4C72B0", "问题2": "#DD8452", "问题3": "#55A868"}
-
-
 def save_fig(fig, path, dpi=300):
-
     fig.savefig(path, dpi=dpi, bbox_inches="tight")
     print(f"图片已保存到：{path}（dpi={dpi}）")
-
-
 def collect() -> dict[str, dict[str, float]]:
-
     out = {}
     for c in CASES:
         q1 = json.load(open(ARCHIVE / f"q1_solution_{c}.json", encoding="utf-8"))
@@ -78,26 +32,12 @@ def collect() -> dict[str, dict[str, float]]:
                       "delta": q3["metrics"]["delta_s"] / 3600.0},
         }
     return out
-
-
 def fig12_summary(data: dict[str, dict[str, dict[str, float]]]) -> plt.Figure:
-
-
-
-
-
-
-
-
-
-
     fig, axes = plt.subplots(2, 1, figsize=(10.5, 7.2), sharex=True)
     x = np.arange(len(CASES)) * 1.25
     width = 0.24
     x_lo, x_hi = -0.9, 5.7
     handles = []
-
-
     ax = axes[0]
     ax.text(0.008, 0.965, "(a)", transform=ax.transAxes, fontsize=12,
             fontweight="bold", va="top", ha="left", zorder=7)
@@ -113,12 +53,10 @@ def fig12_summary(data: dict[str, dict[str, dict[str, float]]]) -> plt.Figure:
     q2_t = [data[c]["问题2"]["Tmax"] for c in CASES]
     ymax_t = max(q3_t) * 1.18
     ax.set_ylim(0, ymax_t)
-
     ax.axhline(9, color="black", ls="--", lw=1.2, zorder=1)
     ax.text(x[-1] + width + 0.02, 9, "原 9 小时时限（问题1 约束）", ha="left",
             va="center", fontsize=9, color="black", zorder=6,
             bbox=dict(facecolor="white", alpha=0.85, edgecolor="none", pad=1))
-
     for i in range(len(CASES)):
         pct = (q3_t[i] - q2_t[i]) / q2_t[i] * 100
         xc = x[i] + width
@@ -127,8 +65,6 @@ def fig12_summary(data: dict[str, dict[str, dict[str, float]]]) -> plt.Figure:
     ax.set_ylabel("最长完成时间 (h)", fontsize=11)
     ax.set_xlim(x_lo, x_hi)
     ax.grid(axis="y", color="#EEEEEE", linewidth=0.8)
-
-
     ax = axes[1]
     ax.text(0.008, 0.965, "(b)", transform=ax.transAxes, fontsize=12,
             fontweight="bold", va="top", ha="left", zorder=7)
@@ -146,7 +82,6 @@ def fig12_summary(data: dict[str, dict[str, dict[str, float]]]) -> plt.Figure:
     d3 = [data[c]["问题3"]["delta"] * 60 for c in CASES]
     ymax_d = max(d1) * 1.18
     ax.set_ylim(0, ymax_d)
-
     for i in range(len(CASES)):
         for j, dv in ((0, d2[i]), (1, d3[i])):
             xpos = x[i] + j * width
@@ -164,7 +99,6 @@ def fig12_summary(data: dict[str, dict[str, dict[str, float]]]) -> plt.Figure:
     ax.grid(axis="y", color="#EEEEEE", linewidth=0.8)
     ax.set_xticks(x)
     ax.set_xticklabels(CASES)
-
     fig.text(0.5, 0.008,
              "$^{1}$ 增幅以问题 2 方案为基准；$^{2}$ 降幅以问题 1 方案为基准"
              "（Case2 问题3 完全均衡，降幅为 -100%）",
@@ -173,8 +107,6 @@ def fig12_summary(data: dict[str, dict[str, dict[str, float]]]) -> plt.Figure:
     fig.legend(handles, [h.get_label() for h in handles], loc="upper right",
                fontsize=9, frameon=True)
     return fig
-
-
 def main() -> None:
     FIG_DIR.mkdir(parents=True, exist_ok=True)
     data = collect()
@@ -183,7 +115,5 @@ def main() -> None:
         save_fig(fig, FIG_DIR / f"fig12_三问题结果汇总.{ext}", dpi=300)
     plt.close(fig)
     print("完成：fig12_三问题结果汇总")
-
-
 if __name__ == "__main__":
     main()

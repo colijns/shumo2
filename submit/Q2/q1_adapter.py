@@ -1,5 +1,3 @@
-"""Narrow, read-only boundary between Q2 and the approved Q1 helpers."""
-
 import hashlib
 import json
 import math
@@ -7,12 +5,9 @@ import threading
 from collections import Counter
 from pathlib import Path
 from typing import Any
-
 from Q1.solve_q1 import build_matrices, evaluate, load_case
-
 from .domain import CAP_S, SERVICE_S, SPEED_KMH, UNIT_KM, ProblemData, Task, freeze_json
 from .metrics import replay_metrics
-
 FLEET_SIZE_BY_CASE = {
     "Case1": 4,
     "Case2": 2,
@@ -22,16 +17,10 @@ FLEET_SIZE_BY_CASE = {
 DEFAULT_ARCHIVE_RELATIVE = Path("outputs") / "workbooks" / "baseline_20260816"
 CONTRACT_VERSION = "q2-domain-v1"
 _LOAD_CASE_LOCK = threading.Lock()
-
-
 class ParentArchiveError(ValueError):
     pass
-
-
 def _repository_root(repository_root: str | Path | None) -> Path:
     return Path(repository_root).resolve() if repository_root else Path(__file__).resolve().parents[1]
-
-
 def _resolve_paths(
     case_name: str,
     repository_root: str | Path | None,
@@ -46,16 +35,12 @@ def _resolve_paths(
     if not archive.is_file():
         raise FileNotFoundError(f"Q1 parent archive not found: {archive}")
     return attachment, archive
-
-
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as stream:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
-
-
 def _require_hash(label: str, actual: str, expected: str | None) -> None:
     if expected is not None:
         if not isinstance(expected, str) or len(expected) != 64:
@@ -66,8 +51,6 @@ def _require_hash(label: str, actual: str, expected: str | None) -> None:
             raise ParentArchiveError(f"expected {label} SHA-256 must be hexadecimal") from exc
         if actual.lower() != expected.lower():
             raise ParentArchiveError(f"{label} SHA-256 mismatch: expected {expected}, got {actual}")
-
-
 def _load_case_at(case_name: str, attachment: Path) -> dict[str, Any]:
     namespace = load_case.__globals__
     with _LOAD_CASE_LOCK:
@@ -77,22 +60,16 @@ def _load_case_at(case_name: str, attachment: Path) -> dict[str, Any]:
             return load_case(case_name)
         finally:
             namespace["ATTACH_XLSX"] = previous
-
-
 def _immutable_matrices(case: dict[str, Any]) -> tuple[tuple[tuple[float, ...], ...], tuple[tuple[int, ...], ...]]:
     distance, time_s = build_matrices(case)
     immutable_distance = tuple(tuple(float(value) for value in row) for row in distance)
     immutable_time = tuple(tuple(int(value) for value in row) for row in time_s)
     return immutable_distance, immutable_time
-
-
 def _tasks(case: dict[str, Any]) -> tuple[Task, ...]:
     return tuple(
         Task(int(item["task_id"]), int(item["pid"]), float(item["x"]), float(item["y"]))
         for item in case["tasks"]
     )
-
-
 def _validate_header(case_name: str, archive: dict[str, Any]) -> list[dict[str, Any]]:
     if not isinstance(archive, dict):
         raise ParentArchiveError("parent archive root must be a JSON object")
@@ -111,8 +88,6 @@ def _validate_header(case_name: str, archive: dict[str, Any]) -> list[dict[str, 
     if not isinstance(uavs, list) or len(uavs) != expected:
         raise ParentArchiveError(f"parent must contain fixed fleet of {expected} UAV records")
     return uavs
-
-
 def _extract_routes(
     uavs: list[dict[str, Any]], task_count: int
 ) -> tuple[tuple[tuple[int, ...], ...], list[dict[str, Any]]]:
@@ -138,8 +113,6 @@ def _extract_routes(
     if len(flat) != task_count or set(flat) != set(range(1, task_count + 1)):
         raise ParentArchiveError(f"parent tasks must cover exactly 1..{task_count} once")
     return tuple(routes), ordered_uavs
-
-
 def _validate_mapping(
     tasks: tuple[Task, ...],
     routes: tuple[tuple[int, ...], ...],
@@ -158,12 +131,8 @@ def _validate_mapping(
     actual = Counter(point_id for route in derived for point_id in route)
     if actual != expected:
         raise ParentArchiveError("parent per-point visitation counts do not match task expansion")
-
-
 def _close_float(actual: float, expected: float, tolerance: float = 5e-7) -> bool:
     return math.isclose(actual, expected, rel_tol=0.0, abs_tol=tolerance)
-
-
 def _validate_route_metrics(uavs: list[dict[str, Any]], metrics: Any) -> None:
     for index, (record, replayed) in enumerate(zip(uavs, metrics.routes), 1):
         if replayed.work_s > CAP_S:
@@ -183,8 +152,6 @@ def _validate_route_metrics(uavs: list[dict[str, Any]], metrics: Any) -> None:
             raise ParentArchiveError(f"UAV {index} archived dist_km mismatch")
         if "work_h" in record and not _close_float(float(record["work_h"]), replayed.work_s / 3600.0):
             raise ParentArchiveError(f"UAV {index} archived work_h mismatch")
-
-
 def _validate_parent_metrics(archive: dict[str, Any], metrics: Any) -> None:
     expected = {"Tmax_s": metrics.Tmax_s, "Tmin_s": metrics.Tmin_s}
     for field, value in expected.items():
@@ -194,8 +161,6 @@ def _validate_parent_metrics(archive: dict[str, Any], metrics: Any) -> None:
     for field, value in hour_values.items():
         if field in archive and not _close_float(float(archive[field]), value):
             raise ParentArchiveError(f"parent archived {field} mismatch")
-
-
 def _validate_compatibility(case: dict[str, Any], distance: tuple[tuple[float, ...], ...], time_s: tuple[tuple[int, ...], ...], routes: tuple[tuple[int, ...], ...], metrics: Any) -> None:
     compatibility = evaluate(case, distance, time_s, [list(route) for route in routes])
     for index, (q1_stats, replayed) in enumerate(zip(compatibility, metrics.routes), 1):
@@ -205,8 +170,6 @@ def _validate_compatibility(case: dict[str, Any], distance: tuple[tuple[float, .
             raise ParentArchiveError(f"Q1 compatibility distance mismatch for UAV {index}")
         if tuple(q1_stats["point_seq"]) != replayed.point_sequence:
             raise ParentArchiveError(f"Q1 compatibility point mapping mismatch for UAV {index}")
-
-
 def _contract_sha(case_name: str, tasks: tuple[Task, ...], routes: tuple[tuple[int, ...], ...], attachment_sha: str, archive_sha: str) -> str:
     payload = {
         "version": CONTRACT_VERSION,
@@ -220,8 +183,6 @@ def _contract_sha(case_name: str, tasks: tuple[Task, ...], routes: tuple[tuple[i
     }
     encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
-
-
 def load_problem(
     case_name: str,
     *,
@@ -232,7 +193,6 @@ def load_problem(
     expected_archive_sha256: str | None = None,
     expected_problem_contract_sha256: str | None = None,
 ) -> ProblemData:
-
     attachment, archive_file = _resolve_paths(case_name, repository_root, attachment_path, archive_path)
     attachment_sha, archive_sha = _sha256(attachment), _sha256(archive_file)
     _require_hash("attachment", attachment_sha, expected_attachment_sha256)
@@ -255,8 +215,6 @@ def load_problem(
         freeze_json(archive), str(attachment), str(archive_file), attachment_sha, archive_sha,
         contract_sha, True,
     )
-
-
 def replay_archive(
     case_name: str,
     archive: dict[str, Any],
@@ -264,7 +222,6 @@ def replay_archive(
     attachment_path: str | Path | None = None,
     repository_root: str | Path | None = None,
 ) -> dict[str, Any]:
-
     root = _repository_root(repository_root)
     attachment = Path(attachment_path).resolve() if attachment_path else root / "attachment" / "附件1.xlsx"
     case = _load_case_at(case_name, attachment)

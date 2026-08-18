@@ -1,56 +1,24 @@
-
-
 import math
 from dataclasses import dataclass
-
 import numpy as np
-
 Point = np.ndarray
-
 TAU = 2.0 * math.pi
-
-
 @dataclass(frozen=True)
 class ArcLeg:
-
-
-
-
-
     start: int
     end: int
     center: Point
     radius_km: float
     direction: int
-
-
 @dataclass(frozen=True)
 class VisibilityPath:
-
-
-
-
-
-
-
-
-
     points: tuple[Point, ...]
     arc_pairs: tuple[tuple[int, int], ...]
     length_km: float
     arc_legs: tuple[ArcLeg, ...] = ()
-
-
 def _vec(value) -> np.ndarray:
     return np.asarray(value, dtype=float).reshape(-1)
-
-
 def segment_circle_interval(p, q, c, r) -> tuple[float, float] | None:
-
-
-
-
-
     p, q, c = _vec(p), _vec(q), _vec(c)
     d = q - p
     f = p - c
@@ -68,13 +36,7 @@ def segment_circle_interval(p, q, c, r) -> tuple[float, float] | None:
     if t0 > t1:
         return None
     return (t0, t1)
-
-
 def segment_clear(p, q, disks, margin: float = 0.0) -> bool:
-
-
-
-
     p, q = _vec(p), _vec(q)
     for center, radius in disks:
         radius = max(radius - margin, 0.0)
@@ -82,19 +44,12 @@ def segment_clear(p, q, disks, margin: float = 0.0) -> bool:
         if interval is None:
             continue
         t0, t1 = interval
-
-
         if t1 - t0 > 1e-6:
             return False
     return True
-
-
 def point_inside(point, center, radius) -> bool:
     return float(np.linalg.norm(_vec(point) - _vec(center))) <= radius
-
-
 def tangent_points(p, c, r) -> tuple[Point, Point] | None:
-
     p, c = _vec(p), _vec(c)
     d = float(np.linalg.norm(p - c))
     if d <= r:
@@ -104,14 +59,7 @@ def tangent_points(p, c, r) -> tuple[Point, Point] | None:
     t1 = c + r * np.array([math.cos(base + beta), math.sin(base + beta)])
     t2 = c + r * np.array([math.cos(base - beta), math.sin(base - beta)])
     return t1, t2
-
-
 def detour_path(p, q, c, r) -> tuple[list[Point], float, int] | None:
-
-
-
-
-
     p, q, c = _vec(p), _vec(q), _vec(c)
     tp = tangent_points(p, c, r)
     tq = tangent_points(q, c, r)
@@ -131,10 +79,7 @@ def detour_path(p, q, c, r) -> tuple[list[Point], float, int] | None:
                 best = (a, b, direction)
     a, b, direction = best
     return [p, a, b, q], best_arc, direction
-
-
 def detour_distance(p, q, c, r) -> float | None:
-
     result = detour_path(p, q, c, r)
     if result is None:
         return None
@@ -143,10 +88,7 @@ def detour_distance(p, q, c, r) -> float | None:
         np.linalg.norm(points[3] - points[2])
     )
     return tangent_len + r * arc_angle
-
-
 def _normalized_intervals(lo: float, hi: float) -> list[tuple[float, float]]:
-
     if hi - lo <= 1e-12:
         return []
     start = lo % TAU
@@ -154,32 +96,20 @@ def _normalized_intervals(lo: float, hi: float) -> list[tuple[float, float]]:
     if start + span <= TAU + 1e-12:
         return [(start, min(start + span, TAU))]
     return [(start, TAU), (0.0, start + span - TAU)]
-
-
 def arc_intersection_with_circle(
     c1, r1, theta_start, theta_end, direction, c2, r2
 ) -> list[tuple[float, float]]:
-
-
-
-
-
-
     c1, c2 = _vec(c1), _vec(c2)
     center_distance = float(np.linalg.norm(c2 - c1))
     arc_sweep = _arc_step(theta_start, theta_end, direction)
     arc_lo = min(theta_start, theta_start + arc_sweep)
     arc_hi = max(theta_start, theta_start + arc_sweep)
-
     if center_distance >= r1 + r2 or center_distance <= abs(r1 - r2):
-
         mid = (theta_start + arc_sweep / 2.0) % TAU
         probe = c1 + r1 * np.array([math.cos(mid), math.sin(mid)])
         if float(np.linalg.norm(probe - c2)) <= r2:
             return _normalized_intervals(arc_lo, arc_hi)
         return []
-
-
     angle = math.atan2(c2[1] - c1[1], c2[0] - c1[0])
     offset = math.acos(
         (center_distance * center_distance + r1 * r1 - r2 * r2)
@@ -195,7 +125,6 @@ def arc_intersection_with_circle(
     else:
         inside_parts = _normalized_intervals(t2, t2 + TAU - sweep)
     arc_parts = _normalized_intervals(arc_lo, arc_hi)
-
     result = []
     for in_lo, in_hi in inside_parts:
         for ar_lo, ar_hi in arc_parts:
@@ -204,32 +133,17 @@ def arc_intersection_with_circle(
             if lo < hi - 1e-12:
                 result.append((lo, hi))
     return result
-
-
 def _arc_step(start, end, direction) -> float:
-
     if direction > 0:
         return (end - start) % TAU
     return -((start - end) % TAU)
-
-
 def arc_intersects_disk(c1, r1, theta_start, theta_end, direction, c2, r2) -> bool:
     return bool(arc_intersection_with_circle(c1, r1, theta_start, theta_end, direction, c2, r2))
-
-
 def visibility_path(p, q, disks, margin: float = 0.0) -> VisibilityPath | None:
-
-
-
-
-
-
-
     p, q = _vec(p), _vec(q)
     disks = [(_vec(center), float(radius)) for center, radius in disks]
     if segment_clear(p, q, disks, margin):
         return VisibilityPath((p, q), (), float(np.linalg.norm(q - p)))
-
     nodes: list[Point] = [p, q]
     for center, radius in disks:
         for origin in (p, q):
@@ -248,19 +162,16 @@ def visibility_path(p, q, disks, margin: float = 0.0) -> VisibilityPath | None:
             )
             nodes.append(c1 + r1 * np.array([math.cos(angle + offset), math.sin(angle + offset)]))
             nodes.append(c1 + r1 * np.array([math.cos(angle - offset), math.sin(angle - offset)]))
-
     unique: list[Point] = []
     for node in nodes:
         if all(float(np.linalg.norm(node - existing)) > 1e-9 for existing in unique):
             unique.append(node)
     nodes = unique
-
     size = len(nodes)
     dist = [math.inf] * size
     prev: list[tuple[int, float, tuple | None] | None] = [None] * size
     visited = [False] * size
     dist[0] = 0.0
-
     def relax(a: int, b: int, weight: float, edge_info: tuple | None) -> None:
         if visited[b]:
             return
@@ -268,7 +179,6 @@ def visibility_path(p, q, disks, margin: float = 0.0) -> VisibilityPath | None:
         if candidate < dist[b]:
             dist[b] = candidate
             prev[b] = (a, weight, edge_info)
-
     for _ in range(size):
         current = -1
         best = math.inf
@@ -279,15 +189,11 @@ def visibility_path(p, q, disks, margin: float = 0.0) -> VisibilityPath | None:
         if current < 0 or current == 1:
             break
         visited[current] = True
-
         for other in range(size):
             if visited[other]:
                 continue
             if segment_clear(nodes[current], nodes[other], disks, margin):
                 relax(current, other, float(np.linalg.norm(nodes[other] - nodes[current])), None)
-
-
-
         for disk_index, (center, radius) in enumerate(disks):
             arc_radius = radius + margin
             on_ring = sorted(
@@ -322,7 +228,6 @@ def visibility_path(p, q, disks, margin: float = 0.0) -> VisibilityPath | None:
                     relax(b, a, arc_radius * arc_angle, arc_info)
     if math.isinf(dist[1]):
         return None
-
     reversed_nodes: list[Point] = [nodes[1]]
     reversed_edge_infos: list[tuple | None] = []
     cursor = 1
@@ -344,9 +249,6 @@ def visibility_path(p, q, disks, margin: float = 0.0) -> VisibilityPath | None:
             arc_pairs.append((index, index + 1))
             arc_legs.append(ArcLeg(index, index + 1, center, radius, direction))
     return VisibilityPath(points, tuple(arc_pairs), dist[1], tuple(arc_legs))
-
-
 def path_length(points) -> float:
-
     points = [_vec(point) for point in points]
     return sum(float(np.linalg.norm(points[i + 1] - points[i])) for i in range(len(points) - 1))

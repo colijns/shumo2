@@ -1,5 +1,3 @@
-
-
 from .domain import (
     DEFAULT_CONFIG,
     EPS_ARC_KM,
@@ -20,7 +18,6 @@ from .domain import (
     UAVSchedule,
     hhmm_to_s,
 )
-
 __all__ = [
     "DEFAULT_CONFIG",
     "EPS_ARC_KM",
