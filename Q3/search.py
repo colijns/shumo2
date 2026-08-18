@@ -297,6 +297,26 @@ def _greedy_time_aware(problem: ProblemData) -> list[tuple[int, ...]] | None:
 # Initial pool
 # --------------------------------------------------------------------------
 
+def _q3_archive_routes(problem: ProblemData, repository_root: Path) -> list[tuple[int, ...]] | None:
+    """Own verified Q3 archive routes (highest-priority warm start).
+
+    Q3's own published result is the best known solution for the case, so a
+    rerun must resume from it rather than from the (possibly worse or
+    no-fly-infeasible) Q2 routes. None on missing archive or infeasibility.
+    """
+    strict = repository_root / "outputs" / "workbooks" / "q3" / "strict" / f"{problem.case}.json"
+    if not strict.is_file():
+        return None
+    archive = load_archive(strict)
+    routes = archive.get("task_routes")
+    if not isinstance(routes, list) or not routes:
+        return None
+    task_routes = [tuple(int(task_id) for task_id in uav) for uav in routes]
+    if not legality(problem, task_routes):
+        return None
+    return task_routes
+
+
 def _hot_start_routes(problem: ProblemData, repository_root: Path) -> tuple[list[tuple[int, ...]], dict] | None:
     """Q2 strict archive routes with full contract gating; None on any drift."""
     strict = repository_root / "outputs" / "workbooks" / "q2" / "strict" / f"{problem.case}.json"
@@ -381,22 +401,29 @@ def _perturb_swap(problem: ProblemData, routes: list[list[int]], rng: np.random.
 
 
 def build_initial_solutions(problem: ProblemData, rng_hashed, k: int, repository_root: Path) -> list[Solution]:
-    """Pool by priority: hot start -> Q1 fallback -> greedy x3 -> perturbations.
+    """Pool by priority: Q3 own archive -> Q2 hot start -> Q1 fallback -> greedy.
 
-    Every candidate passes legality + eval; a fully infeasible pool fails
-    closed with a descriptive error.
+    Q3/Q2 sources are both evaluated and the lexicographically better one
+    seeds the perturbation neighbours; every candidate passes legality + eval;
+    a fully infeasible pool fails closed with a descriptive error.
     """
     pool: list[Solution] = []
-    hot_routes, hot_meta = None, None
     if repository_root is not None:
+        sources: list[list[tuple[int, ...]]] = []
+        q3 = _q3_archive_routes(problem, repository_root)
+        if q3 is not None:
+            sources.append(q3)
         hot = _hot_start_routes(problem, repository_root)
         if hot is not None:
-            hot_routes, hot_meta = hot
-    if hot_routes is not None:
-        solution = eval_solution(problem, hot_routes)
-        if solution is not None:
-            pool.append(solution)
-            pool.extend(_eval_perturbations(problem, hot_routes, k - 1))
+            sources.append(hot[0])
+        for routes in sources:
+            solution = eval_solution(problem, routes)
+            if solution is not None:
+                pool.append(solution)
+    if pool:
+        pool.sort(key=lambda s: s.metrics.lex_key())
+        base = [sched.task_route for sched in pool[0].schedules]
+        pool.extend(_eval_perturbations(problem, base, k - 1))
     if not pool and repository_root is not None:
         baseline = _q1_baseline_routes(problem, repository_root)
         if baseline is not None:

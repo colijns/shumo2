@@ -24,6 +24,10 @@
 | N1 | 代码组织 | 对齐 Q2 包结构（不可变 dataclass、原子落盘、契约哈希、独立校验器）+ `tests/q3/` |
 | N2 | 热启动轨道 | 仅 strict 轨；缺失/校验失败回退 Q1 基线 → 贪心，manifest 记录回退来源 |
 | N3 | OR-Tools | 不引入；几何与图搜索用 numpy + 手写 Dijkstra |
+| R1 | 初始解池来源（2026-08-18 重跑） | 两级：Q3 自身已验证档案（`q3/strict/Case{1-4}.json`，最高优先）→ Q2 strict 档案 → Q1 基线 → 贪心；按词典序排序择优，扰动基于池首。详见 `Q3/RERUN_PLAN.md` |
+| R2 | Q2 新路线处理 | 仍纳入池（仅 Case1 合法）；排序在 Q3 档案之后，仅当 Q3 档案缺失/损坏时兜底 |
+| R3 | 旧版留存 | 重跑前归档 `outputs/workbooks/q3/` → `q3_baseline_20260817/`（重写归档 manifest 相对路径） |
+| R4 | 重跑预算 | 每 Case 1800 s，顺序 Case2 → Case3 → Case4 → Case1 |
 
 **已固定假设**（无异议）：Q3 档案 schema 版本化（`q3-solution-v1`）；输出目录族 `outputs/workbooks/q3/{strict,timetables,reports,checkpoints}/`；逐航段时间表按建模方案 §10 的 13 字段 CSV；result3.xlsx 用 pandas+openpyxl 原子写；独立校验器共享几何原语但独立重放时间轴。
 

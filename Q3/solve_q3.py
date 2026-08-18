@@ -67,7 +67,20 @@ def _sha256_of(path: Path) -> str:
 def _hot_start_block(problem, repository_root: Path) -> dict:
     """Warm-start provenance + the baseline metrics gating acceptance (PLAN 11.3)."""
     from .safe_path import eval_solution
+    from .search import _q3_archive_routes
 
+    q3 = _q3_archive_routes(problem, repository_root)
+    if q3 is not None:
+        solution = eval_solution(problem, q3)
+        if solution is not None:
+            strict = repository_root / Q3_OUT_RELATIVE / "strict" / f"{problem.case}.json"
+            return {
+                "source": "q3-archive",
+                "archive_path": str(strict),
+                "archive_sha256": _sha256_of(strict),
+                "fallback": None,
+                "metrics": _metrics_dict(solution.metrics),
+            }
     hot = _hot_start_routes(problem, repository_root)
     if hot is not None:
         routes, meta = hot

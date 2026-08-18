@@ -70,6 +70,45 @@ def test_hot_start_loads_real_case1_archive_readonly():
     assert legality(problem, routes)
 
 
+def test_q3_archive_seeds_pool_first():
+    """Own Q3 verified archive must seed the pool ahead of the Q2 hot start."""
+    from Q3.io import load_archive, load_problem
+
+    problem = load_problem("Case1", repository_root=ROOT)
+    pool = build_initial_solutions(problem, None, k=2, repository_root=ROOT)
+    assert pool
+    archive = load_archive(ROOT / "outputs" / "workbooks" / "q3" / "strict" / "Case1.json")
+    archived = eval_solution(
+        problem,
+        [tuple(int(task_id) for task_id in route) for route in archive["task_routes"]],
+    )
+    assert archived is not None
+    first = pool[0]
+    assert first.metrics.lex_key() == archived.metrics.lex_key()
+    assert [sched.task_route for sched in first.schedules] == [
+        sched.task_route for sched in archived.schedules
+    ]
+
+
+def test_q3_archive_missing_falls_back_to_q2(tmp_path):
+    """Without an own Q3 archive, the pool falls back to the Q2 hot start."""
+    from Q3.io import load_problem
+    from Q3.search import _hot_start_routes
+
+    src = ROOT / "outputs" / "workbooks" / "q2" / "strict" / "Case1.json"
+    dst = tmp_path / "outputs" / "workbooks" / "q2" / "strict" / "Case1.json"
+    dst.parent.mkdir(parents=True)
+    dst.write_bytes(src.read_bytes())
+    problem = load_problem("Case1", repository_root=ROOT)
+    pool = build_initial_solutions(problem, None, k=2, repository_root=tmp_path)
+    assert pool
+    hot = _hot_start_routes(problem, tmp_path)
+    assert hot is not None
+    hot_sol = eval_solution(problem, hot[0])
+    assert hot_sol is not None
+    assert pool[0].metrics.lex_key() == hot_sol.metrics.lex_key()
+
+
 def test_operator_outputs_pass_legality(mini_problem):
     """Every operator candidate must stay structurally legal."""
     routes = [(1, 2), (3, 4)]
