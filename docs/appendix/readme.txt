@@ -79,8 +79,10 @@ q3_conflict_focus_finalize.py           独立复核四个候选档案并生成�
 1. 绘图脚本（均已入池 docs/appendix/source_code/，头部含 AI 辅助注释）：
    plots/plot_overview.py     图1 巡检点空间分布、图2 巡检等级构成
    Q1/plot_q1.py              图3 路径规划方案、图4 各机工作时长、图5 求解收敛曲线
-   Q2/plot_q2.py              图6 Q1vsQ2 工作时长对比、图7 双目标权衡、图8 跨算例 Tmax/δ 对比
-   Q3/plot_q3.py              图9 禁飞区与绕行路径、图9附 Case2 绕行细节、图10 甘特图、图11 绕行代价对比
+   Q2/plot_q2.py              图6 单机工作时长调整细节、图7 双目标权衡、
+                               图8 跨算例 δ 均衡效果对比
+   Q3/plot_q3.py              图9 禁飞区与绕行路径（Case2 单图）、
+                               图10 无人机任务甘特图、图11 绕行代价对比（问题2 基线）
    plots/plot_summary.py      图12 三问题结果汇总
 2. 运行方法（仓库根目录，math 环境）：python plots/plot_overview.py 等，全部图输出
    png（300 dpi）+ pdf 双格式至各题 figs/ 目录；数据直接读取 outputs/workbooks/
